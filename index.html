@@ -283,7 +283,27 @@ input,select,textarea{font-family:var(--sans);}
 .btn, .side-link, .icon-btn, .cal-cell, .table-actions button{min-height:40px;}
 .btn-sm{min-height:36px;}
 .table-wrap{-webkit-overflow-scrolling:touch;}
-table{min-width:520px;}
+table.responsive-cards{min-width:0;}
+
+@media(max-width:680px){
+  table.responsive-cards thead{display:none;}
+  table.responsive-cards, table.responsive-cards tbody, table.responsive-cards tr, table.responsive-cards td{display:block; width:100%;}
+  table.responsive-cards{border:none;}
+  table.responsive-cards tr{
+    border:1px solid var(--line); border-radius:10px; margin-bottom:10px; padding:4px 14px; background:var(--paper-raised);
+  }
+  table.responsive-cards td{
+    border-bottom:1px dashed var(--line); padding:9px 0; display:flex; justify-content:space-between; align-items:center;
+    gap:12px; font-size:13.5px; text-align:right;
+  }
+  table.responsive-cards td:last-child{border-bottom:none;}
+  table.responsive-cards td::before{
+    content:attr(data-label); font-weight:600; color:var(--ink-soft); font-size:12px; text-align:left; flex-shrink:0;
+  }
+  table.responsive-cards td.table-actions{justify-content:flex-end;}
+  table.responsive-cards td.table-actions::before{content:none;}
+  table.responsive-cards td.no-label::before{content:none;}
+}
 
 /* ============================================================
    SHARED UI: cards, grids, chips, tables
@@ -302,6 +322,8 @@ table{min-width:520px;}
 
 .dash-grid{display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:18px;}
 @media(max-width:900px){.dash-grid{grid-template-columns:1fr;}}
+.attendance-grid{grid-template-columns:1fr 1.4fr;}
+@media(max-width:900px){.attendance-grid{grid-template-columns:1fr;}}
 
 .chip{display:inline-flex; align-items:center; gap:6px; padding:4px 11px; border-radius:20px; font-size:12.5px; font-weight:600;}
 .chip-success{background:var(--accent-tint); color:var(--accent-dark);}
@@ -603,7 +625,7 @@ tr:last-child td{border-bottom:none;}
 
       <!-- ATTENDANCE -->
       <section class="section" id="section-attendance">
-        <div class="dash-grid" style="grid-template-columns:1fr 1.4fr;">
+        <div class="dash-grid attendance-grid">
           <div class="card">
             <div class="card-head"><h3>Record attendance</h3></div>
             <form id="attendance-form">
@@ -819,6 +841,7 @@ const firebaseConfig = {
   appId: "1:765310938417:web:3b512e87926be35d111410",
   measurementId: "G-T4YC8X1245"
 };
+
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
@@ -1355,13 +1378,13 @@ function renderRecentAttendance(){
       </div>`;
     return;
   }
-  wrap.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Date</th><th>Subject</th><th>Status</th><th></th></tr></thead><tbody>
+  wrap.innerHTML = `<div class="table-wrap"><table class="responsive-cards"><thead><tr><th>Date</th><th>Subject</th><th>Status</th><th></th></tr></thead><tbody>
     ${recent.map(a=>`
       <tr>
-        <td>${prettyDate(a.date)}</td>
-        <td>${escapeHtml(subjectName(a.subjectId))}</td>
-        <td><span class="chip ${a.status==='present'?'chip-success':a.status==='absent'?'chip-danger':'chip-warn'}">${statusLabel(a.status)}</span></td>
-        <td class="table-actions">
+        <td data-label="Date">${prettyDate(a.date)}</td>
+        <td data-label="Subject">${escapeHtml(subjectName(a.subjectId))}</td>
+        <td data-label="Status"><span class="chip ${a.status==='present'?'chip-success':a.status==='absent'?'chip-danger':'chip-warn'}">${statusLabel(a.status)}</span></td>
+        <td class="table-actions no-label">
           <button onclick="editAttendanceQuick('${a.id}')" title="Edit"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg></button>
           <button onclick="deleteAttendance('${a.id}')" title="Delete"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button>
         </td>
@@ -1412,13 +1435,13 @@ function renderHistory(){
     wrap.innerHTML = `<div class="empty-state"><p>No matching attendance records.</p></div>`;
     return;
   }
-  wrap.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Date</th><th>Subject</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+  wrap.innerHTML = `<div class="table-wrap"><table class="responsive-cards"><thead><tr><th>Date</th><th>Subject</th><th>Status</th><th>Actions</th></tr></thead><tbody>
     ${rows.map(a=>`
       <tr>
-        <td>${prettyDate(a.date)}</td>
-        <td>${escapeHtml(subjectName(a.subjectId))}</td>
-        <td><span class="chip ${a.status==='present'?'chip-success':a.status==='absent'?'chip-danger':'chip-warn'}">${statusLabel(a.status)}</span></td>
-        <td class="table-actions">
+        <td data-label="Date">${prettyDate(a.date)}</td>
+        <td data-label="Subject">${escapeHtml(subjectName(a.subjectId))}</td>
+        <td data-label="Status"><span class="chip ${a.status==='present'?'chip-success':a.status==='absent'?'chip-danger':'chip-warn'}">${statusLabel(a.status)}</span></td>
+        <td class="table-actions no-label">
           <button onclick="editAttendanceQuick('${a.id}')" title="Edit"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg></button>
           <button onclick="deleteAttendance('${a.id}')" title="Delete"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button>
         </td>
@@ -1658,14 +1681,14 @@ function renderReport(){
     </div>
     <div class="card" style="margin-bottom:16px;">
       <div class="card-head"><h3>Subject-wise attendance</h3></div>
-      <div class="table-wrap"><table><thead><tr><th>Subject</th><th>Total</th><th>Present</th><th>Absent</th><th>Leave</th><th>%</th></tr></thead><tbody>
-        ${subjects.map(s=>{ const st = subjectStats(s.id); return `<tr><td>${escapeHtml(s.name)}</td><td>${st.total}</td><td>${st.present}</td><td>${st.absent}</td><td>${st.leave}</td><td>${st.percentage}%</td></tr>`; }).join('') || '<tr><td colspan="6" style="text-align:center; color:var(--ink-soft);">No subjects yet.</td></tr>'}
+      <div class="table-wrap"><table class="responsive-cards"><thead><tr><th>Subject</th><th>Total</th><th>Present</th><th>Absent</th><th>Leave</th><th>%</th></tr></thead><tbody>
+        ${subjects.map(s=>{ const st = subjectStats(s.id); return `<tr><td data-label="Subject">${escapeHtml(s.name)}</td><td data-label="Total">${st.total}</td><td data-label="Present">${st.present}</td><td data-label="Absent">${st.absent}</td><td data-label="Leave">${st.leave}</td><td data-label="%">${st.percentage}%</td></tr>`; }).join('') || '<tr><td colspan="6" style="text-align:center; color:var(--ink-soft);">No subjects yet.</td></tr>'}
       </tbody></table></div>
     </div>
     <div class="card">
       <div class="card-head"><h3>Full attendance history</h3></div>
-      <div class="table-wrap"><table><thead><tr><th>Date</th><th>Subject</th><th>Status</th></tr></thead><tbody>
-        ${sorted.map(a=>`<tr><td>${prettyDate(a.date)}</td><td>${escapeHtml(subjectName(a.subjectId))}</td><td>${statusLabel(a.status)}</td></tr>`).join('') || '<tr><td colspan="3" style="text-align:center; color:var(--ink-soft);">No records yet.</td></tr>'}
+      <div class="table-wrap"><table class="responsive-cards"><thead><tr><th>Date</th><th>Subject</th><th>Status</th></tr></thead><tbody>
+        ${sorted.map(a=>`<tr><td data-label="Date">${prettyDate(a.date)}</td><td data-label="Subject">${escapeHtml(subjectName(a.subjectId))}</td><td data-label="Status">${statusLabel(a.status)}</td></tr>`).join('') || '<tr><td colspan="3" style="text-align:center; color:var(--ink-soft);">No records yet.</td></tr>'}
       </tbody></table></div>
     </div>`;
 }
