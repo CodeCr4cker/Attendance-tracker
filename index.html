@@ -221,19 +221,69 @@ input,select,textarea{font-family:var(--sans);}
 .icon-btn svg{width:17px; height:17px; stroke:currentColor;}
 .icon-btn:hover{color:var(--ink); border-color:var(--ink-soft);}
 .menu-toggle{display:none;}
-.content{padding:26px 30px 60px; flex:1;}
+.content{padding:26px 30px 60px; flex:1; position:relative; min-height:70vh;}
 .section{display:none;}
 .section.active{display:block;}
 
+.content-loader-overlay{
+  position:absolute; top:0; left:0; right:0; bottom:0; background:var(--paper);
+  z-index:50; display:none; flex-direction:column; align-items:center; justify-content:center; gap:16px;
+}
+.content-loader-overlay.active{display:flex;}
+.content-loader-overlay .spinner{width:32px; height:32px; border-width:3px;}
+.content-loader-overlay span{font-size:13.5px; color:var(--ink-soft); font-weight:500;}
+
+.sidebar-overlay{display:none; position:fixed; inset:0; background:rgba(15,18,24,.45); z-index:90;}
+.sidebar-overlay.show{display:block;}
+
 @media(max-width:900px){
   .sidebar{
-    position:fixed; left:-250px; top:0; z-index:100; transition:left .2s ease; box-shadow:0 0 0 2000px rgba(0,0,0,0);
+    position:fixed; left:-260px; top:0; z-index:100; transition:left .2s ease; width:240px;
   }
-  .sidebar.open{left:0; box-shadow:0 0 0 2000px rgba(0,0,0,.4);}
+  .sidebar.open{left:0;}
   .menu-toggle{display:flex;}
-  .content{padding:20px 16px 50px;}
-  .topbar{padding:14px 16px;}
+  .content{padding:18px 16px 50px;}
+  .topbar{padding:12px 14px;}
+  .topbar h2{font-size:17px;}
+  #greeting-name{display:none;}
+  .row-2{grid-template-columns:1fr;}
+  .toolbar{flex-direction:column; align-items:stretch;}
+  .toolbar select, .toolbar input{width:100%;}
+  .ring-wrap{flex-direction:column; align-items:flex-start; gap:16px;}
+  .modal{max-width:94vw; padding:22px 18px; max-height:88vh; overflow-y:auto;}
+  table{font-size:13px;}
+  th,td{padding:9px 8px;}
+  .cal-grid{gap:4px;}
+  .cal-cell{border-radius:6px; font-size:11.5px;}
+  .cal-cell .dot{width:5px; height:5px;}
+  .feature-grid{grid-template-columns:1fr;}
+  .hero-actions{flex-direction:column; align-items:stretch;}
+  .landing-nav{padding:16px 5vw;}
+  .landing-nav .nav-actions{gap:8px;}
+  .landing-nav .nav-actions .btn{padding:9px 14px; font-size:13.5px;}
+  .stat-grid{gap:10px;}
+  .stat-card{padding:14px 15px;}
+  .auth-card{padding:28px 22px;}
 }
+
+@media(max-width:480px){
+  .content{padding:14px 12px 44px;}
+  .card{padding:16px;}
+  .hero{padding:22vw 5vw 12vw;}
+  .hero-copy h1{max-width:none;}
+  .subject-card{padding:15px;}
+  .dash-grid{gap:14px;}
+  .btn{padding:12px 18px;}
+  .icon-btn, .menu-toggle{width:38px; height:38px;}
+  .side-link{padding:12px 12px;}
+  .modal{padding:18px 16px;}
+}
+
+/* Touch targets */
+.btn, .side-link, .icon-btn, .cal-cell, .table-actions button{min-height:40px;}
+.btn-sm{min-height:36px;}
+.table-wrap{-webkit-overflow-scrolling:touch;}
+table{min-width:520px;}
 
 /* ============================================================
    SHARED UI: cards, grids, chips, tables
@@ -486,6 +536,7 @@ tr:last-child td{border-bottom:none;}
      APP SHELL
      ============================================================ -->
 <div id="app-shell">
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
   <aside class="sidebar" id="sidebar">
     <div class="brand"><div class="mark"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg></div>Ledger</div>
     <nav class="side-nav">
@@ -507,7 +558,7 @@ tr:last-child td{border-bottom:none;}
   <div class="main">
     <div class="topbar">
       <div style="display:flex; align-items:center; gap:12px;">
-        <button class="icon-btn menu-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+        <button class="icon-btn menu-toggle" onclick="toggleSidebar()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
         <h2 id="section-title">Dashboard</h2>
       </div>
       <div class="topbar-right">
@@ -516,6 +567,10 @@ tr:last-child td{border-bottom:none;}
     </div>
 
     <div class="content">
+      <div class="content-loader-overlay" id="content-loader">
+        <div class="spinner"></div>
+        <span id="content-loader-text">Loading…</span>
+      </div>
 
       <!-- DASHBOARD -->
       <section class="section active" id="section-dashboard">
@@ -890,16 +945,44 @@ function showAuth(which){
   document.getElementById('auth-'+which).classList.remove('hidden');
 }
 
+const SECTION_TITLES = {dashboard:'Dashboard', attendance:'Attendance', subjects:'Subjects', calendar:'Calendar', reports:'Reports', calculator:'Calculator', profile:'Profile', settings:'Settings'};
+let sectionLoaderTimer = null;
+
+function toggleSidebar(){
+  const open = $('sidebar').classList.toggle('open');
+  $('sidebar-overlay').classList.toggle('show', open);
+}
+function closeSidebar(){
+  $('sidebar').classList.remove('open');
+  $('sidebar-overlay').classList.remove('show');
+}
+
+function showContentLoader(label){
+  $('content-loader-text').textContent = `Loading ${label.toLowerCase()}…`;
+  $('content-loader').classList.add('active');
+}
+function hideContentLoader(){
+  $('content-loader').classList.remove('active');
+}
+
 function switchSection(target){
   document.querySelectorAll('.side-link[data-target]').forEach(b=>b.classList.toggle('active', b.dataset.target===target));
-  document.querySelectorAll('.section').forEach(s=>s.classList.toggle('active', s.id === 'section-'+target));
-  const titles = {dashboard:'Dashboard', attendance:'Attendance', subjects:'Subjects', calendar:'Calendar', reports:'Reports', calculator:'Calculator', profile:'Profile', settings:'Settings'};
-  $('section-title').textContent = titles[target] || target;
-  $('sidebar').classList.remove('open');
-  if(target === 'dashboard') renderCharts();
-  if(target === 'calendar') renderCalendar();
-  if(target === 'reports') renderReport();
-  if(target === 'calculator') prefillCalculator();
+  closeSidebar();
+  const label = SECTION_TITLES[target] || target;
+
+  // Every section switch shows a brief loading state before the section appears.
+  if(sectionLoaderTimer) clearTimeout(sectionLoaderTimer);
+  showContentLoader(label);
+
+  sectionLoaderTimer = setTimeout(()=>{
+    document.querySelectorAll('.section').forEach(s=>s.classList.toggle('active', s.id === 'section-'+target));
+    $('section-title').textContent = label;
+    if(target === 'dashboard') renderCharts();
+    if(target === 'calendar') renderCalendar();
+    if(target === 'reports') renderReport();
+    if(target === 'calculator') prefillCalculator();
+    hideContentLoader();
+  }, 5000);
 }
 document.querySelectorAll('.side-link[data-target]').forEach(btn=>{
   btn.addEventListener('click', ()=>switchSection(btn.dataset.target));
