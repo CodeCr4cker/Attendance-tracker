@@ -627,7 +627,10 @@ tr:last-child td{border-bottom:none;}
       <section class="section" id="section-attendance">
         <div class="dash-grid attendance-grid">
           <div class="card">
-            <div class="card-head"><h3>Record attendance</h3></div>
+            <div class="card-head">
+              <h3>Record attendance</h3>
+              <span id="att-editing-badge" class="chip chip-warn hidden" style="cursor:default;">Editing entry</span>
+            </div>
             <form id="attendance-form">
               <div class="field"><label>Subject</label><select id="att-subject" required></select></div>
               <div class="field"><label>Date</label><input type="date" id="att-date" required></div>
@@ -638,8 +641,12 @@ tr:last-child td{border-bottom:none;}
                   <option value="leave">Leave</option>
                 </select>
               </div>
-              <div id="att-duplicate-note" class="hint" style="display:none; color:var(--amber); margin-bottom:12px;"></div>
+              <div id="att-existing-list" style="display:none; margin-bottom:16px;">
+                <div class="hint" id="att-existing-note" style="margin-bottom:8px;"></div>
+                <div id="att-existing-entries" style="display:flex; flex-direction:column; gap:6px;"></div>
+              </div>
               <button class="btn btn-primary btn-block" type="submit" id="att-submit">Save attendance</button>
+              <button class="btn btn-outline btn-block hidden" type="button" id="att-cancel-edit" style="margin-top:8px;" onclick="cancelEditAttendance()">Cancel edit — add new instead</button>
             </form>
           </div>
           <div class="card">
@@ -989,6 +996,7 @@ function hideContentLoader(){
 }
 
 function switchSection(target){
+  if(target !== 'attendance' && editingAttendanceId){ cancelEditAttendance(); }
   document.querySelectorAll('.side-link[data-target]').forEach(b=>b.classList.toggle('active', b.dataset.target===target));
   closeSidebar();
   const label = SECTION_TITLES[target] || target;
@@ -1321,19 +1329,56 @@ function attachAttendanceListener(){
 $('att-date').value = todayStr();
 $('att-date').max = todayStr();
 
+let editingAttendanceId = null; // when set, submitting the form updates this record instead of creating a new one
+
 $('att-subject').addEventListener('change', checkDuplicateAttendance);
 $('att-date').addEventListener('change', checkDuplicateAttendance);
+
+// Returns all attendance entries for a subject on a date, ordered by their
+// slot (i.e. 1st class, 2nd class, ... of that subject that day).
+function entriesForSubjectDate(subjectId, date){
+  return attendance
+    .filter(a=>a.subjectId===subjectId && a.date===date)
+    .sort((a,b)=> (a.slot||1) - (b.slot||1));
+}
+
 function checkDuplicateAttendance(){
   const subjectId = $('att-subject').value, date = $('att-date').value;
-  const note = $('att-duplicate-note');
-  const existing = attendance.find(a=>a.subjectId===subjectId && a.date===date);
-  if(existing){
-    note.style.display = 'block';
-    note.textContent = `Already recorded as "${statusLabel(existing.status)}" for this date. Saving will update it.`;
-    $('att-status').value = existing.status;
-  } else {
-    note.style.display = 'none';
+  const listWrap = $('att-existing-list');
+  const note = $('att-existing-note');
+  const entriesWrap = $('att-existing-entries');
+  const existing = entriesForSubjectDate(subjectId, date).filter(a=>a.id !== editingAttendanceId);
+
+  if(existing.length === 0){
+    listWrap.style.display = 'none';
+    return;
   }
+
+  listWrap.style.display = 'block';
+  const classWord = existing.length === 1 ? 'class' : 'classes';
+  note.textContent = editingAttendanceId
+    ? `${existing.length} other ${classWord} already recorded for this subject on this date:`
+    : `${existing.length} ${classWord} already recorded for this subject on this date. Saving will add another class, not replace these:`;
+
+  entriesWrap.innerHTML = existing.map((a,i)=>`
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:7px 10px; background:var(--paper); border:1px solid var(--line); border-radius:7px; font-size:13px;">
+      <span>Class ${a.slot || (i+1)} — <span class="chip ${a.status==='present'?'chip-success':a.status==='absent'?'chip-danger':'chip-warn'}" style="padding:2px 8px; font-size:11.5px;">${statusLabel(a.status)}</span></span>
+      <button type="button" class="btn btn-ghost btn-sm" style="padding:3px 8px;" onclick="editAttendanceQuick('${a.id}')">Edit</button>
+    </div>`).join('');
+}
+
+function setEditingMode(on){
+  $('att-editing-badge').classList.toggle('hidden', !on);
+  $('att-cancel-edit').classList.toggle('hidden', !on);
+  $('att-submit').textContent = on ? 'Update this class' : 'Save attendance';
+}
+
+function cancelEditAttendance(){
+  editingAttendanceId = null;
+  setEditingMode(false);
+  $('attendance-form').reset();
+  $('att-date').value = todayStr();
+  checkDuplicateAttendance();
 }
 
 $('attendance-form').addEventListener('submit', async (e)=>{
@@ -1345,26 +1390,50 @@ $('attendance-form').addEventListener('submit', async (e)=>{
   if(!date){ showToast('Please choose a date', 'error'); return; }
   if(date > todayStr()){ showToast('Future dates are not allowed', 'error'); return; }
 
-  const docId = `${subjectId}_${date}`;
   const btn = $('att-submit'); btn.disabled = true; btn.textContent = 'Saving…';
   try{
-    const ref = db.collection('users').doc(currentUser.uid).collection('attendance').doc(docId);
-    const existing = await ref.get();
-    await ref.set({
-      subjectId, date, status,
-      createdAt: existing.exists ? existing.data().createdAt : firebase.firestore.FieldValue.serverTimestamp(),
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    showToast(existing.exists ? 'Attendance updated' : 'Attendance saved', 'success');
-    $('att-duplicate-note').style.display = 'none';
+    const coll = db.collection('users').doc(currentUser.uid).collection('attendance');
+    if(editingAttendanceId){
+      // Update an existing class entry — does not affect the count of classes.
+      await coll.doc(editingAttendanceId).update({
+        subjectId, date, status,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      showToast('Attendance updated', 'success');
+      editingAttendanceId = null;
+      setEditingMode(false);
+    } else {
+      // Always create a new class entry, so the same subject can be marked
+      // multiple times in a day (e.g. more than one period/lecture),
+      // and every marking counts as its own class + attendance record.
+      const siblings = entriesForSubjectDate(subjectId, date);
+      const slot = siblings.length + 1;
+      await coll.add({
+        subjectId, date, status, slot,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      showToast(slot > 1 ? `Class ${slot} saved for this subject today` : 'Attendance saved', 'success');
+    }
+    $('att-existing-list').style.display = 'none';
   }catch(err){
     showToast('Could not save attendance', 'error');
   }finally{
-    btn.disabled = false; btn.textContent = 'Save attendance';
+    btn.disabled = false;
+    setEditingMode(!!editingAttendanceId);
   }
 });
 
 function subjectName(id){ const s = subjects.find(x=>x.id===id); return s ? s.name : 'Unknown subject'; }
+
+// Display label for one attendance record: appends "· Class N" when the
+// same subject has more than one entry recorded on the same date.
+function entryLabel(a){
+  const siblings = entriesForSubjectDate(a.subjectId, a.date);
+  if(siblings.length <= 1) return escapeHtml(subjectName(a.subjectId));
+  const slot = a.slot || (siblings.findIndex(s=>s.id===a.id) + 1);
+  return `${escapeHtml(subjectName(a.subjectId))} <span style="color:var(--ink-soft); font-weight:500;">· Class ${slot}</span>`;
+}
 
 function renderRecentAttendance(){
   const wrap = $('recent-attendance-wrap');
@@ -1382,7 +1451,7 @@ function renderRecentAttendance(){
     ${recent.map(a=>`
       <tr>
         <td data-label="Date">${prettyDate(a.date)}</td>
-        <td data-label="Subject">${escapeHtml(subjectName(a.subjectId))}</td>
+        <td data-label="Subject">${entryLabel(a)}</td>
         <td data-label="Status"><span class="chip ${a.status==='present'?'chip-success':a.status==='absent'?'chip-danger':'chip-warn'}">${statusLabel(a.status)}</span></td>
         <td class="table-actions no-label">
           <button onclick="editAttendanceQuick('${a.id}')" title="Edit"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg></button>
@@ -1396,9 +1465,11 @@ function editAttendanceQuick(id){
   const a = attendance.find(x=>x.id===id);
   if(!a) return;
   switchSection('attendance');
+  editingAttendanceId = id;
   $('att-subject').value = a.subjectId;
   $('att-date').value = a.date;
   $('att-status').value = a.status;
+  setEditingMode(true);
   checkDuplicateAttendance();
   window.scrollTo({ top:0, behavior:'smooth' });
 }
@@ -1439,7 +1510,7 @@ function renderHistory(){
     ${rows.map(a=>`
       <tr>
         <td data-label="Date">${prettyDate(a.date)}</td>
-        <td data-label="Subject">${escapeHtml(subjectName(a.subjectId))}</td>
+        <td data-label="Subject">${entryLabel(a)}</td>
         <td data-label="Status"><span class="chip ${a.status==='present'?'chip-success':a.status==='absent'?'chip-danger':'chip-warn'}">${statusLabel(a.status)}</span></td>
         <td class="table-actions no-label">
           <button onclick="editAttendanceQuick('${a.id}')" title="Edit"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg></button>
@@ -1594,7 +1665,8 @@ function renderCalendar(){
 }
 
 function openDayDetail(dateStr){
-  const recs = attendance.filter(a=>a.date===dateStr);
+  const recs = attendance.filter(a=>a.date===dateStr)
+    .sort((a,b)=> subjectName(a.subjectId).localeCompare(subjectName(b.subjectId)) || (a.slot||1)-(b.slot||1));
   $('daydetail-title').textContent = prettyDate(dateStr);
   if(recs.length === 0){
     $('daydetail-body').innerHTML = `<p style="font-size:13.5px; color:var(--ink-soft);">No attendance recorded for this date.</p>
@@ -1602,9 +1674,9 @@ function openDayDetail(dateStr){
   } else {
     $('daydetail-body').innerHTML = recs.map(a=>`
       <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--line);">
-        <span>${escapeHtml(subjectName(a.subjectId))}</span>
+        <span>${entryLabel(a)}</span>
         <span class="chip ${a.status==='present'?'chip-success':a.status==='absent'?'chip-danger':'chip-warn'}">${statusLabel(a.status)}</span>
-      </div>`).join('') + `<button class="btn btn-outline btn-sm" style="margin-top:14px;" onclick="closeModal('daydetail-modal-overlay'); switchSection('attendance'); document.getElementById('att-date').value='${dateStr}';">Edit from Attendance tab</button>`;
+      </div>`).join('') + `<button class="btn btn-outline btn-sm" style="margin-top:14px;" onclick="closeModal('daydetail-modal-overlay'); switchSection('attendance'); document.getElementById('att-date').value='${dateStr}'; checkDuplicateAttendance();">Add another class</button>`;
   }
   openModal('daydetail-modal-overlay');
 }
@@ -1688,16 +1760,18 @@ function renderReport(){
     <div class="card">
       <div class="card-head"><h3>Full attendance history</h3></div>
       <div class="table-wrap"><table class="responsive-cards"><thead><tr><th>Date</th><th>Subject</th><th>Status</th></tr></thead><tbody>
-        ${sorted.map(a=>`<tr><td data-label="Date">${prettyDate(a.date)}</td><td data-label="Subject">${escapeHtml(subjectName(a.subjectId))}</td><td data-label="Status">${statusLabel(a.status)}</td></tr>`).join('') || '<tr><td colspan="3" style="text-align:center; color:var(--ink-soft);">No records yet.</td></tr>'}
+        ${sorted.map(a=>`<tr><td data-label="Date">${prettyDate(a.date)}</td><td data-label="Subject">${entryLabel(a)}</td><td data-label="Status">${statusLabel(a.status)}</td></tr>`).join('') || '<tr><td colspan="3" style="text-align:center; color:var(--ink-soft);">No records yet.</td></tr>'}
       </tbody></table></div>
     </div>`;
 }
 
 function exportCSV(){
   if(attendance.length === 0){ showToast('No attendance data to export', 'error'); return; }
-  const rows = [['Date','Subject','Status']];
+  const rows = [['Date','Subject','Class #','Status']];
   [...attendance].sort((a,b)=> a.date < b.date ? -1 : 1).forEach(a=>{
-    rows.push([a.date, subjectName(a.subjectId), statusLabel(a.status)]);
+    const siblings = entriesForSubjectDate(a.subjectId, a.date);
+    const slot = a.slot || (siblings.findIndex(s=>s.id===a.id) + 1);
+    rows.push([a.date, subjectName(a.subjectId), slot, statusLabel(a.status)]);
   });
   const csv = rows.map(r=> r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
   const blob = new Blob([csv], { type:'text/csv' });
