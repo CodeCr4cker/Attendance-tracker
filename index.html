@@ -36,7 +36,7 @@
   --amber:#B9791F;
   --amber-tint:#F5EBD8;
   --red:#AD4548;
-  --red-tint:#F5E4E2;
+  --red-tint:#F5E4E2; --blue:#3E6FA3; --blue-tint:#E3ECF5; --violet:#7254A3; --violet-tint:#EAE4F3;
   --shadow: 0 1px 2px rgba(27,36,48,.04);
   --radius: 10px;
   --serif: 'Fraunces', Georgia, serif;
@@ -56,10 +56,17 @@
   --amber:#DBA75A;
   --amber-tint:#2E2618;
   --red:#DE8285;
-  --red-tint:#2E1E1F;
+  --red-tint:#2E1E1F; --blue:#86AEDB; --blue-tint:#1B2634; --violet:#B096DB; --violet-tint:#261F33;
   --shadow: 0 1px 2px rgba(0,0,0,.3);
 }
 
+.chip-info{background:var(--blue-tint)!important;color:var(--blue)!important;}
+.chip-neutral{background:var(--line)!important;color:var(--ink-soft)!important;}
+.chip-exam{background:var(--violet-tint)!important;color:var(--violet)!important;}
+.guide p,.guide li{font-size:13.5px;color:var(--ink-soft);line-height:1.7;}
+.guide ol,.guide ul{margin:6px 0 0;padding-left:20px;}
+.guide h4{margin:18px 0 6px;font-size:16px;}
+.guide td{vertical-align:top;}
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;}
 body{
@@ -569,6 +576,7 @@ tr:last-child td{border-bottom:none;}
       <button class="side-link" data-target="reports"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>Reports</button>
       <button class="side-link" data-target="calculator"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 7h6M9 11h6M9 15h3"/></svg>Calculator</button>
       <button class="side-link" data-target="profile"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>Profile</button>
+      <button class="side-link" data-target="guide"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 015 .5c0 1.7-2.5 2-2.5 3.5M12 17h.01"/></svg>Guide</button>
       <button class="side-link" data-target="settings"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1-1.6 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>Settings</button>
     </nav>
     <div class="side-foot">
@@ -621,6 +629,10 @@ tr:last-child td{border-bottom:none;}
             <canvas id="chart-trend" height="180"></canvas>
           </div>
         </div>
+        <div class="card" style="margin-top:18px;">
+          <div class="card-head"><h3>Exam attendance</h3></div>
+          <div id="dash-exams"></div>
+        </div>
       </section>
 
       <!-- ATTENDANCE -->
@@ -632,15 +644,21 @@ tr:last-child td{border-bottom:none;}
               <span id="att-editing-badge" class="chip chip-warn hidden" style="cursor:default;">Editing entry</span>
             </div>
             <form id="attendance-form">
+              <div class="field"><label>Entry type</label>
+                <select id="att-type"><option value="class">Class / Lecture</option><option value="exam">Exam</option></select></div>
+              <div class="field" id="att-bulk-row"><label style="display:flex; gap:8px; align-items:center; font-weight:500;"><input type="checkbox" id="att-bulk" style="width:auto; padding:0;"> Apply to all subjects (whole day, e.g. holiday)</label></div>
               <div class="field"><label>Subject</label><select id="att-subject" required></select></div>
               <div class="field"><label>Date</label><input type="date" id="att-date" required></div>
-              <div class="field"><label>Status</label>
-                <select id="att-status" required>
-                  <option value="present">Present</option>
-                  <option value="absent">Absent</option>
-                  <option value="leave">Leave</option>
-                </select>
+              <div class="field"><label>Status</label><select id="att-status" required></select>
+                <div class="hint" id="att-status-hint"></div></div>
+              <div class="field hidden" id="att-exam-row"><label>Exam type</label>
+                <select id="att-exam-type"><option>Internal / Class test</option><option>Mid-semester</option><option>End-semester</option><option>Practical / Lab</option><option>Viva</option><option>Quiz / Assignment</option><option>Other</option></select></div>
+              <div class="row-2 hidden" id="att-sub-row">
+                <div class="field"><label>Substitute teacher / subject</label><input type="text" id="att-sub-by" maxlength="80" placeholder="e.g. Prof. Rao"></div>
+                <div class="field"><label>Attended it?</label><select id="att-sub-attended"><option value="yes">Yes</option><option value="no">No</option></select></div>
               </div>
+              <div class="field"><label>Period / time (optional)</label><input type="text" id="att-period" maxlength="40" placeholder="e.g. 2nd period, 10:00"></div>
+              <div class="field"><label>Note / reason (optional)</label><input type="text" id="att-note" maxlength="160" placeholder="e.g. Diwali break, doctor's appointment"></div>
               <div id="att-existing-list" style="display:none; margin-bottom:16px;">
                 <div class="hint" id="att-existing-note" style="margin-bottom:8px;"></div>
                 <div id="att-existing-entries" style="display:flex; flex-direction:column; gap:6px;"></div>
@@ -659,12 +677,8 @@ tr:last-child td{border-bottom:none;}
           <div class="card-head"><h3>Attendance history</h3></div>
           <div class="toolbar">
             <select id="hist-subject-filter"><option value="">All subjects</option></select>
-            <select id="hist-status-filter">
-              <option value="">All statuses</option>
-              <option value="present">Present</option>
-              <option value="absent">Absent</option>
-              <option value="leave">Leave</option>
-            </select>
+            <select id="hist-type-filter"><option value="">Classes &amp; exams</option><option value="class">Classes only</option><option value="exam">Exams only</option></select>
+            <select id="hist-status-filter"><option value="">All statuses</option></select>
             <input type="date" id="hist-from">
             <input type="date" id="hist-to">
             <input class="search" type="text" id="hist-search" placeholder="Search subject...">
@@ -696,7 +710,7 @@ tr:last-child td{border-bottom:none;}
             <span><i class="dot" style="background:var(--accent)"></i>Present</span>
             <span><i class="dot" style="background:var(--red)"></i>Absent</span>
             <span><i class="dot" style="background:var(--amber)"></i>Leave</span>
-            <span><i class="dot" style="background:var(--line-strong)"></i>No record</span>
+            <span><i class="dot" style="background:var(--blue)"></i>Substitution</span><span><i class="dot" style="background:var(--ink-soft)"></i>Holiday / not held</span><span><i class="dot" style="background:var(--violet)"></i>Exam</span><span><i class="dot" style="background:var(--line-strong)"></i>No record</span>
           </div>
         </div>
       </section>
@@ -768,6 +782,32 @@ tr:last-child td{border-bottom:none;}
         </div>
       </section>
 
+      <!-- GUIDE -->
+      <section class="section" id="section-guide">
+        <div class="card guide" style="max-width:760px;">
+          <div class="card-head"><h3>User guide</h3></div>
+          <h4>Quick start</h4>
+          <ol>
+            <li>Add your subjects in <b>Subjects</b>. If you already have past attendance, enter it as the <b>opening balance</b>.</li>
+            <li>Open <b>Attendance</b>, pick Class or Exam, a subject, a date and a status, then save.</li>
+            <li>Check the <b>Dashboard</b> and <b>Reports</b> for percentages, and how many classes you can miss.</li>
+          </ol>
+          <h4>Statuses and how they count</h4>
+          <div class="table-wrap"><table><thead><tr><th>Status</th><th>How it counts</th></tr></thead><tbody id="guide-status-body"></tbody></table></div>
+          <h4>Manual features</h4>
+          <ul>
+            <li><b>Whole-day marking:</b> tick "Apply to all subjects" on the form, or tap a date in the Calendar and choose "Mark day as holiday / suspended".</li>
+            <li><b>Several classes a day:</b> save the same subject again on the same date to add another class.</li>
+            <li><b>Exams:</b> choose Entry type "Exam". Exam attendance is shown separately and only joins your overall percentage if enabled in Settings.</li>
+            <li><b>Substitution:</b> record who took the class and whether you attended.</li>
+            <li><b>Period and note:</b> optional details, shown in history, reports and CSV.</li>
+            <li><b>Future dates:</b> allowed only for holiday, suspended, cancelled and event entries.</li>
+            <li><b>Rules:</b> in Settings, decide whether late, on-duty and medical leave count as present.</li>
+            <li><b>Edit or delete:</b> use the pencil and bin icons in Recent entries or History.</li>
+          </ul>
+        </div>
+      </section>
+
       <!-- SETTINGS -->
       <section class="section" id="section-settings">
         <div class="card" style="max-width:520px;">
@@ -779,6 +819,17 @@ tr:last-child td{border-bottom:none;}
             </div>
             <button class="btn btn-outline btn-sm" onclick="toggleTheme()" id="settings-theme-btn">Switch to dark</button>
           </div>
+        </div>
+        <div class="card" style="max-width:520px; margin-top:16px;">
+          <div class="card-head"><h3>Attendance rules</h3></div>
+          <p style="font-size:13px; color:var(--ink-soft); margin-bottom:12px;">Choose how special statuses count. Holiday, suspended, cancelled and event days are never counted.</p>
+          <div style="display:flex; flex-direction:column; gap:10px; font-size:14px;">
+            <label><input type="checkbox" id="rule-late"> Late arrival counts as present</label>
+            <label><input type="checkbox" id="rule-onduty"> On duty (OD) counts as present</label>
+            <label><input type="checkbox" id="rule-medical"> Medical leave counts as present</label>
+            <label><input type="checkbox" id="rule-exams"> Include exams in overall percentage</label>
+          </div>
+          <button class="btn btn-primary btn-sm" style="margin-top:16px;" onclick="saveRules()">Save rules</button>
         </div>
         <div class="card" style="max-width:520px; margin-top:16px;">
           <div class="card-head"><h3>Account</h3></div>
@@ -802,6 +853,11 @@ tr:last-child td{border-bottom:none;}
       <div class="field"><label>Subject name</label><input type="text" id="subject-name" required></div>
       <div class="field"><label>Subject code</label><input type="text" id="subject-code" placeholder="e.g. CS301"></div>
       <div class="field"><label>Target attendance %</label><input type="number" min="1" max="100" id="subject-target" value="75" required></div>
+      <div class="row-2">
+        <div class="field"><label>Classes held before tracking</label><input type="number" min="0" id="subject-open-held" value="0"></div>
+        <div class="field"><label>…of which you attended</label><input type="number" min="0" id="subject-open-att" value="0"></div>
+      </div>
+      <p class="hint" style="font-size:12.5px; color:var(--ink-soft); margin:-6px 0 14px;">Manual opening balance: use this if you started the semester before using Ledger. It is added to your totals.</p>
       <div class="modal-actions">
         <button type="button" class="btn btn-ghost" onclick="closeModal('subject-modal-overlay')">Cancel</button>
         <button type="submit" class="btn btn-primary">Save subject</button>
@@ -861,7 +917,7 @@ db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
    ================================================================ */
 let currentUser = null;
 let profileData = {};
-let subjects = [];        // [{id, name, code, target, ...}]
+let subjects = [];        // [{id, name, code, target, openHeld, openAtt, ...}]
 let attendance = [];      // [{id, subjectId, date, status, ...}]
 let unsubSubjects = null;
 let unsubAttendance = null;
@@ -890,8 +946,46 @@ function pct(present, total){
   if(!total) return 0;
   return Math.round((present/total)*1000)/10;
 }
-function statusLabel(s){ return {present:'Present', absent:'Absent', leave:'Leave'}[s] || s; }
-function statusColorVar(s){ return {present:'--accent', absent:'--red', leave:'--amber'}[s] || '--ink-soft'; }
+const STATUS = {
+  present:{l:'Present',c:'--accent',chip:'chip-success',d:'You attended. Counts as a held class and as attended.'},
+  absent:{l:'Absent',c:'--red',chip:'chip-danger',d:'Held class you missed. Counts against you.'},
+  leave:{l:'Leave',c:'--amber',chip:'chip-warn',d:'Held class you missed on leave. Counts as held, not attended.'},
+  late:{l:'Late',c:'--amber',chip:'chip-warn',d:'Arrived late. Counts as attended unless changed in Settings.'},
+  on_duty:{l:'On duty (OD)',c:'--accent',chip:'chip-info',d:'College-approved activity. Counts as attended unless changed in Settings.'},
+  medical:{l:'Medical leave',c:'--amber',chip:'chip-warn',d:'Held class missed for health reasons. Not attended unless Settings counts it.'},
+  substitution:{l:'Substitution',c:'--blue',chip:'chip-info',d:'Another teacher or subject took the class. Held class; you say whether you attended.'},
+  holiday:{l:'Holiday',c:'--ink-soft',chip:'chip-neutral',d:'No class. Not counted at all.'},
+  suspended:{l:'Class suspended',c:'--ink-soft',chip:'chip-neutral',d:'Classes suspended. Not counted at all.'},
+  cancelled:{l:'Teacher absent / cancelled',c:'--ink-soft',chip:'chip-neutral',d:'Class cancelled. Not counted at all.'},
+  event:{l:'College event / no class',c:'--ink-soft',chip:'chip-neutral',d:'Fest, strike or event. Not counted at all.'}
+};
+const SKIP_STATUSES = ['holiday','suspended','cancelled','event'];
+function statusLabel(s){ return STATUS[s] ? STATUS[s].l : s; }
+function recordLabel(a){ return (a.type==='exam' ? 'Exam · ' : '') + statusLabel(a.status); }
+function chipClass(a){ return STATUS[a.status] ? STATUS[a.status].chip : 'chip-warn'; }
+function getRules(){ return { late:true, onDuty:true, medical:false, exams:false, ...(profileData.rules||{}) }; }
+// Returns 'att' (held + attended), 'miss' (held, not attended), 'leave' (held, excused) or 'skip' (not held)
+function classify(a){
+  const r = getRules(), s = a.status;
+  if((a.type||'class')==='exam') return s==='present' ? 'att' : 'miss';
+  if(SKIP_STATUSES.includes(s)) return 'skip';
+  if(s==='present') return 'att';
+  if(s==='absent') return 'miss';
+  if(s==='late') return r.late ? 'att' : 'miss';
+  if(s==='on_duty') return r.onDuty ? 'att' : 'leave';
+  if(s==='medical') return r.medical ? 'att' : 'leave';
+  if(s==='substitution') return a.attendedSub===false ? 'miss' : 'att';
+  return 'leave';
+}
+function tally(recs, openHeld=0, openAtt=0){
+  let present=openAtt, absent=Math.max(0,openHeld-openAtt), leave=0, skipped=0;
+  recs.forEach(a=>{ const c=classify(a); if(c==='att')present++; else if(c==='miss')absent++; else if(c==='leave')leave++; else skipped++; });
+  const total=present+absent+leave;
+  return { total, present, absent, leave, skipped, percentage: pct(present,total) };
+}
+function recsForStats(){ return attendance.filter(a=> (a.type||'class')==='class' || getRules().exams); }
+function examStats(){ return tally(attendance.filter(a=>a.type==='exam')); }
+function statusColorVar(s){ return STATUS[s] ? STATUS[s].c : '--ink-soft'; }
 
 function showToast(message, type='info'){
   const el = document.createElement('div');
@@ -975,7 +1069,7 @@ function showAuth(which){
   document.getElementById('auth-'+which).classList.remove('hidden');
 }
 
-const SECTION_TITLES = {dashboard:'Dashboard', attendance:'Attendance', subjects:'Subjects', calendar:'Calendar', reports:'Reports', calculator:'Calculator', profile:'Profile', settings:'Settings'};
+const SECTION_TITLES = {dashboard:'Dashboard', attendance:'Attendance', subjects:'Subjects', calendar:'Calendar', reports:'Reports', calculator:'Calculator', profile:'Profile', settings:'Settings', guide:'Guide'};
 let sectionLoaderTimer = null;
 
 function toggleSidebar(){
@@ -1143,6 +1237,7 @@ function fillProfileForm(){
   $('pf-section').value = profileData.section || '';
   $('pf-year').value = profileData.academicYear || '';
   $('pf-target').value = profileData.targetPercentage || 75;
+  fillRulesForm();
 }
 $('profile-form').addEventListener('submit', async (e)=>{
   e.preventDefault();
@@ -1190,12 +1285,8 @@ function attachSubjectsListener(){
 }
 
 function subjectStats(subjectId){
-  const recs = attendance.filter(a=>a.subjectId===subjectId);
-  const present = recs.filter(a=>a.status==='present').length;
-  const absent = recs.filter(a=>a.status==='absent').length;
-  const leave = recs.filter(a=>a.status==='leave').length;
-  const total = recs.length;
-  return { total, present, absent, leave, percentage: pct(present, total) };
+  const sub = subjects.find(x=>x.id===subjectId) || {};
+  return tally(recsForStats().filter(a=>a.subjectId===subjectId), sub.openHeld||0, sub.openAtt||0);
 }
 
 function statusFor(percentage, target){
@@ -1253,7 +1344,7 @@ function renderSubjects(){
         </div>
         <div class="bar-track"><div class="bar-fill" style="width:${Math.min(st.percentage,100)}%; background:var(--${colorVar});"></div></div>
         <div class="s-stats">
-          <span>${st.total} classes</span><span>${st.present} present</span><span>${st.absent} absent</span><span>${st.leave} leave</span>
+          <span>${st.total} classes</span><span>${st.present} present</span><span>${st.absent} absent</span><span>${st.leave} leave</span><span>${st.skipped} not held</span>
         </div>
         <p style="font-size:12.5px; color:var(--ink-soft); line-height:1.5; margin-top:10px;">${missOrNeedText(st.present, st.total, target)}</p>
         <div class="s-actions">
@@ -1272,10 +1363,13 @@ function openSubjectModal(id){
     $('subject-name').value = s.name || '';
     $('subject-code').value = s.code || '';
     $('subject-target').value = s.target || 75;
+    $('subject-open-held').value = s.openHeld || 0;
+    $('subject-open-att').value = s.openAtt || 0;
   } else {
     $('subject-modal-title').textContent = 'Add subject';
     $('subject-form').reset();
     $('subject-target').value = 75;
+    $('subject-open-held').value = 0; $('subject-open-att').value = 0;
   }
   openModal('subject-modal-overlay');
 }
@@ -1285,18 +1379,20 @@ $('subject-form').addEventListener('submit', async (e)=>{
   const name = $('subject-name').value.trim();
   const code = $('subject-code').value.trim();
   const target = Number($('subject-target').value) || 75;
+  const openHeld = Math.max(0, Number($('subject-open-held').value) || 0), openAtt = Math.max(0, Number($('subject-open-att').value) || 0);
+  if(openAtt > openHeld){ showToast('Attended cannot be more than classes held', 'error'); return; }
   if(!name){ showToast('Subject name is required', 'error'); return; }
   const btn = e.target.querySelector('button[type=submit]');
   btn.disabled = true;
   try{
     if(editingSubjectId){
       await db.collection('users').doc(currentUser.uid).collection('subjects').doc(editingSubjectId).set({
-        name, code, target, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        name, code, target, openHeld, openAtt, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge:true });
       showToast('Subject updated', 'success');
     } else {
       await db.collection('users').doc(currentUser.uid).collection('subjects').add({
-        name, code, target,
+        name, code, target, openHeld, openAtt,
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
@@ -1347,18 +1443,84 @@ function attachAttendanceListener(){
 }
 
 $('att-date').value = todayStr();
-$('att-date').max = todayStr();
 
 let editingAttendanceId = null; // when set, submitting the form updates this record instead of creating a new one
 
+function fillStatusOptions(){
+  const t=$('att-type').value, sel=$('att-status'), prev=sel.value;
+  const opt=k=>`<option value="${k}">${STATUS[k].l}</option>`;
+  sel.innerHTML = t==='exam'
+    ? ['present','absent','medical'].map(opt).join('')
+    : `<optgroup label="Counted in attendance">${['present','absent','leave','late','on_duty','medical','substitution'].map(opt).join('')}</optgroup><optgroup label="Not counted (no class held)">${SKIP_STATUSES.map(opt).join('')}</optgroup>`;
+  if([...sel.options].some(o=>o.value===prev)) sel.value=prev;
+  toggleAttExtras();
+}
+function toggleAttExtras(){
+  const t=$('att-type').value, st=$('att-status').value, editing=!!editingAttendanceId;
+  const bulk = $('att-bulk').checked && t==='class' && !editing;
+  $('att-exam-row').classList.toggle('hidden', t!=='exam');
+  $('att-sub-row').classList.toggle('hidden', !(t==='class' && st==='substitution'));
+  $('att-bulk-row').classList.toggle('hidden', t!=='class' || editing);
+  $('att-subject').disabled = bulk; $('att-subject').required = !bulk;
+  $('att-status-hint').textContent = t==='exam'
+    ? 'Exam attendance is tracked separately' + (getRules().exams ? ' and included in your overall percentage.' : ' (not included in class percentage; change in Settings).')
+    : (STATUS[st] ? STATUS[st].d : '');
+}
+async function bulkMark(date, extra){
+  const coll = db.collection('users').doc(currentUser.uid).collection('attendance');
+  const ts = firebase.firestore.FieldValue.serverTimestamp();
+  const batch = db.batch(); let n = 0;
+  subjects.forEach(s=>{
+    const ex = entriesForSubjectDate(s.id, date, 'class');
+    if(ex.some(x=>x.status===extra.status)) return;
+    batch.set(coll.doc(), { subjectId:s.id, date, ...extra, slot:ex.length+1, createdAt:ts, updatedAt:ts }); n++;
+  });
+  if(n) await batch.commit();
+  return n;
+}
+function quickDayMark(dateStr, status){
+  if(!subjects.length){ showToast('Add a subject first', 'error'); return; }
+  askConfirm(`Mark day as ${statusLabel(status).toLowerCase()}?`, `This adds a "${statusLabel(status)}" entry for every subject on ${prettyDate(dateStr)}.`, async ()=>{
+    try{
+      const n = await bulkMark(dateStr, { type:'class', status, period:'', note:'', examType:'', subBy:'', attendedSub:null });
+      showToast(n ? `${statusLabel(status)} added for ${n} subject${n===1?'':'s'}` : 'Already marked for all subjects', 'success');
+      closeModal('daydetail-modal-overlay');
+    }catch(err){ showToast('Could not mark the day', 'error'); }
+  });
+}
+function dayMarkButtons(d){
+  return `<div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:14px;"><button class="btn btn-outline btn-sm" onclick="quickDayMark('${d}','holiday')">Mark day as holiday</button><button class="btn btn-outline btn-sm" onclick="quickDayMark('${d}','suspended')">Mark classes suspended</button></div>`;
+}
+function initFilters(){
+  $('hist-status-filter').innerHTML = '<option value="">All statuses</option>' + Object.keys(STATUS).map(k=>`<option value="${k}">${STATUS[k].l}</option>`).join('');
+  $('guide-status-body').innerHTML = Object.values(STATUS).map(s=>`<tr><td><span class="chip ${s.chip}">${s.l}</span></td><td>${s.d}</td></tr>`).join('');
+}
+function fillRulesForm(){
+  const r=getRules();
+  $('rule-late').checked=r.late; $('rule-onduty').checked=r.onDuty; $('rule-medical').checked=r.medical; $('rule-exams').checked=r.exams;
+}
+async function saveRules(){
+  const rules = { late:$('rule-late').checked, onDuty:$('rule-onduty').checked, medical:$('rule-medical').checked, exams:$('rule-exams').checked };
+  try{
+    await db.collection('users').doc(currentUser.uid).set({ rules, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge:true });
+    profileData.rules = rules;
+    renderSubjects(); renderRecentAttendance(); renderHistory(); renderDashboard(); renderCalendar(); renderReport();
+    showToast('Rules saved', 'success');
+  }catch(err){ showToast('Could not save rules', 'error'); }
+}
+$('att-type').addEventListener('change', ()=>{ fillStatusOptions(); checkDuplicateAttendance(); });
+$('att-status').addEventListener('change', toggleAttExtras);
+$('att-bulk').addEventListener('change', toggleAttExtras);
+initFilters();
+fillStatusOptions();
 $('att-subject').addEventListener('change', checkDuplicateAttendance);
 $('att-date').addEventListener('change', checkDuplicateAttendance);
 
 // Returns all attendance entries for a subject on a date, ordered by their
 // slot (i.e. 1st class, 2nd class, ... of that subject that day).
-function entriesForSubjectDate(subjectId, date){
+function entriesForSubjectDate(subjectId, date, type='class'){
   return attendance
-    .filter(a=>a.subjectId===subjectId && a.date===date)
+    .filter(a=>a.subjectId===subjectId && a.date===date && (a.type||'class')===type)
     .sort((a,b)=> (a.slot||1) - (b.slot||1));
 }
 
@@ -1367,7 +1529,7 @@ function checkDuplicateAttendance(){
   const listWrap = $('att-existing-list');
   const note = $('att-existing-note');
   const entriesWrap = $('att-existing-entries');
-  const existing = entriesForSubjectDate(subjectId, date).filter(a=>a.id !== editingAttendanceId);
+  const existing = entriesForSubjectDate(subjectId, date, $('att-type').value).filter(a=>a.id !== editingAttendanceId);
 
   if(existing.length === 0){
     listWrap.style.display = 'none';
@@ -1382,7 +1544,7 @@ function checkDuplicateAttendance(){
 
   entriesWrap.innerHTML = existing.map((a,i)=>`
     <div style="display:flex; justify-content:space-between; align-items:center; padding:7px 10px; background:var(--paper); border:1px solid var(--line); border-radius:7px; font-size:13px;">
-      <span>Class ${a.slot || (i+1)} — <span class="chip ${a.status==='present'?'chip-success':a.status==='absent'?'chip-danger':'chip-warn'}" style="padding:2px 8px; font-size:11.5px;">${statusLabel(a.status)}</span></span>
+      <span>Class ${a.slot || (i+1)} — <span class="chip ${chipClass(a)}" style="padding:2px 8px; font-size:11.5px;">${recordLabel(a)}</span></span>
       <button type="button" class="btn btn-ghost btn-sm" style="padding:3px 8px;" onclick="editAttendanceQuick('${a.id}')">Edit</button>
     </div>`).join('');
 }
@@ -1390,7 +1552,8 @@ function checkDuplicateAttendance(){
 function setEditingMode(on){
   $('att-editing-badge').classList.toggle('hidden', !on);
   $('att-cancel-edit').classList.toggle('hidden', !on);
-  $('att-submit').textContent = on ? 'Update this class' : 'Save attendance';
+  $('att-submit').textContent = on ? 'Update this entry' : 'Save attendance';
+  toggleAttExtras();
 }
 
 function cancelEditAttendance(){
@@ -1398,43 +1561,44 @@ function cancelEditAttendance(){
   setEditingMode(false);
   $('attendance-form').reset();
   $('att-date').value = todayStr();
+  fillStatusOptions();
   checkDuplicateAttendance();
 }
 
 $('attendance-form').addEventListener('submit', async (e)=>{
   e.preventDefault();
-  const subjectId = $('att-subject').value;
-  const date = $('att-date').value;
-  const status = $('att-status').value;
-  if(!subjectId){ showToast('Please add a subject first', 'error'); return; }
+  const type=$('att-type').value, status=$('att-status').value, date=$('att-date').value;
+  const bulk = $('att-bulk').checked && type==='class' && !editingAttendanceId;
+  const subjectId=$('att-subject').value;
+  if(!bulk && !subjectId){ showToast('Please add a subject first', 'error'); return; }
+  if(bulk && !subjects.length){ showToast('Please add a subject first', 'error'); return; }
   if(!date){ showToast('Please choose a date', 'error'); return; }
-  if(date > todayStr()){ showToast('Future dates are not allowed', 'error'); return; }
-
+  const skip = type==='class' && classify({type,status})==='skip';
+  if(date > todayStr() && !skip){ showToast('Future dates are only allowed for holiday, suspended, cancelled or event entries', 'error'); return; }
+  const extra = {
+    type, status, period:$('att-period').value.trim(), note:$('att-note').value.trim(),
+    examType: type==='exam' ? $('att-exam-type').value : '',
+    subBy: status==='substitution' ? $('att-sub-by').value.trim() : '',
+    attendedSub: status==='substitution' ? $('att-sub-attended').value==='yes' : null
+  };
   const btn = $('att-submit'); btn.disabled = true; btn.textContent = 'Saving…';
   try{
     const coll = db.collection('users').doc(currentUser.uid).collection('attendance');
+    const ts = firebase.firestore.FieldValue.serverTimestamp();
     if(editingAttendanceId){
-      // Update an existing class entry — does not affect the count of classes.
-      await coll.doc(editingAttendanceId).update({
-        subjectId, date, status,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-      showToast('Attendance updated', 'success');
+      await coll.doc(editingAttendanceId).update({ subjectId, date, ...extra, updatedAt:ts });
+      showToast('Entry updated', 'success');
       editingAttendanceId = null;
       setEditingMode(false);
+    } else if(bulk){
+      const n = await bulkMark(date, extra);
+      showToast(n ? `${statusLabel(status)} added for ${n} subject${n===1?'':'s'}` : 'Already marked for all subjects', 'success');
     } else {
-      // Always create a new class entry, so the same subject can be marked
-      // multiple times in a day (e.g. more than one period/lecture),
-      // and every marking counts as its own class + attendance record.
-      const siblings = entriesForSubjectDate(subjectId, date);
-      const slot = siblings.length + 1;
-      await coll.add({
-        subjectId, date, status, slot,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-      showToast(slot > 1 ? `Class ${slot} saved for this subject today` : 'Attendance saved', 'success');
+      const slot = entriesForSubjectDate(subjectId, date, type).length + 1;
+      await coll.add({ subjectId, date, ...extra, slot, createdAt:ts, updatedAt:ts });
+      showToast(slot > 1 ? `Entry ${slot} saved for this subject on this date` : 'Attendance saved', 'success');
     }
+    $('att-note').value=''; $('att-period').value='';
     $('att-existing-list').style.display = 'none';
   }catch(err){
     showToast('Could not save attendance', 'error');
@@ -1449,10 +1613,14 @@ function subjectName(id){ const s = subjects.find(x=>x.id===id); return s ? s.na
 // Display label for one attendance record: appends "· Class N" when the
 // same subject has more than one entry recorded on the same date.
 function entryLabel(a){
-  const siblings = entriesForSubjectDate(a.subjectId, a.date);
-  if(siblings.length <= 1) return escapeHtml(subjectName(a.subjectId));
-  const slot = a.slot || (siblings.findIndex(s=>s.id===a.id) + 1);
-  return `${escapeHtml(subjectName(a.subjectId))} <span style="color:var(--ink-soft); font-weight:500;">· Class ${slot}</span>`;
+  const t = a.type||'class';
+  const sibs = entriesForSubjectDate(a.subjectId, a.date, t);
+  let h = escapeHtml(subjectName(a.subjectId));
+  if(t==='exam') h += ` <span class="chip chip-exam" style="padding:2px 8px; font-size:11.5px;">${escapeHtml(a.examType||'Exam')}</span>`;
+  else if(sibs.length > 1){ const slot = a.slot || (sibs.findIndex(x=>x.id===a.id)+1); h += ` <span style="color:var(--ink-soft); font-weight:500;">· Class ${slot}</span>`; }
+  const meta = [a.period, a.status==='substitution' && a.subBy ? 'Sub: '+a.subBy : '', a.note].filter(Boolean).map(escapeHtml).join(' · ');
+  if(meta) h += `<div style="font-size:12px; color:var(--ink-soft); font-weight:400; margin-top:2px;">${meta}</div>`;
+  return h;
 }
 
 function renderRecentAttendance(){
@@ -1472,7 +1640,7 @@ function renderRecentAttendance(){
       <tr>
         <td data-label="Date">${prettyDate(a.date)}</td>
         <td data-label="Subject">${entryLabel(a)}</td>
-        <td data-label="Status"><span class="chip ${a.status==='present'?'chip-success':a.status==='absent'?'chip-danger':'chip-warn'}">${statusLabel(a.status)}</span></td>
+        <td data-label="Status"><span class="chip ${chipClass(a)}">${recordLabel(a)}</span></td>
         <td class="table-actions no-label">
           <button onclick="editAttendanceQuick('${a.id}')" title="Edit"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg></button>
           <button onclick="deleteAttendance('${a.id}')" title="Delete"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button>
@@ -1486,9 +1654,16 @@ function editAttendanceQuick(id){
   if(!a) return;
   switchSection('attendance');
   editingAttendanceId = id;
+  $('att-type').value = a.type || 'class';
+  fillStatusOptions();
   $('att-subject').value = a.subjectId;
   $('att-date').value = a.date;
   $('att-status').value = a.status;
+  $('att-period').value = a.period || '';
+  $('att-note').value = a.note || '';
+  if(a.examType) $('att-exam-type').value = a.examType;
+  $('att-sub-by').value = a.subBy || '';
+  $('att-sub-attended').value = a.attendedSub===false ? 'no' : 'yes';
   setEditingMode(true);
   checkDuplicateAttendance();
   window.scrollTo({ top:0, behavior:'smooth' });
@@ -1515,6 +1690,7 @@ function renderHistory(){
   let rows = attendance.filter(a=>{
     if(subjectFilter && a.subjectId !== subjectFilter) return false;
     if(statusFilter && a.status !== statusFilter) return false;
+    if($('hist-type-filter').value && (a.type||'class') !== $('hist-type-filter').value) return false;
     if(from && a.date < from) return false;
     if(to && a.date > to) return false;
     if(search && !subjectName(a.subjectId).toLowerCase().includes(search)) return false;
@@ -1531,7 +1707,7 @@ function renderHistory(){
       <tr>
         <td data-label="Date">${prettyDate(a.date)}</td>
         <td data-label="Subject">${entryLabel(a)}</td>
-        <td data-label="Status"><span class="chip ${a.status==='present'?'chip-success':a.status==='absent'?'chip-danger':'chip-warn'}">${statusLabel(a.status)}</span></td>
+        <td data-label="Status"><span class="chip ${chipClass(a)}">${recordLabel(a)}</span></td>
         <td class="table-actions no-label">
           <button onclick="editAttendanceQuick('${a.id}')" title="Edit"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg></button>
           <button onclick="deleteAttendance('${a.id}')" title="Delete"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button>
@@ -1539,7 +1715,7 @@ function renderHistory(){
       </tr>`).join('')}
   </tbody></table></div>`;
 }
-['hist-subject-filter','hist-status-filter','hist-from','hist-to','hist-search'].forEach(id=>{
+['hist-subject-filter','hist-type-filter','hist-status-filter','hist-from','hist-to','hist-search'].forEach(id=>{
   $(id).addEventListener('input', renderHistory);
 });
 
@@ -1553,11 +1729,8 @@ function escapeHtml(str){
    SECTION: DASHBOARD
    ================================================================ */
 function overallStats(){
-  const present = attendance.filter(a=>a.status==='present').length;
-  const absent = attendance.filter(a=>a.status==='absent').length;
-  const leave = attendance.filter(a=>a.status==='leave').length;
-  const total = attendance.length;
-  return { total, present, absent, leave, percentage: pct(present, total) };
+  const oh = subjects.reduce((n,s)=>n+(s.openHeld||0),0), oa = subjects.reduce((n,s)=>n+(s.openAtt||0),0);
+  return tally(recsForStats(), oh, oa);
 }
 
 function renderDashboard(){
@@ -1570,6 +1743,7 @@ function renderDashboard(){
     { num: stats.present, lbl:'Present' },
     { num: stats.absent, lbl:'Absent' },
     { num: stats.leave, lbl:'Leave' },
+    { num: stats.skipped, lbl:'Holidays / not held' },
   ].map(s=>`<div class="stat-card"><div class="num">${s.num}</div><div class="lbl">${s.lbl}</div></div>`).join('');
 
   const state = statusFor(stats.percentage, target);
@@ -1598,6 +1772,12 @@ function renderDashboard(){
     <p style="font-size:13.5px; color:var(--ink-soft); line-height:1.6;">${noteMap[state]}</p>
     <p style="font-size:13.5px; color:var(--ink-soft); line-height:1.6; margin-top:8px;">${missOrNeedText(stats.present, stats.total, target)}</p>`;
 
+  const ex = examStats();
+  const exRecs = attendance.filter(a=>a.type==='exam').slice(0,5);
+  $('dash-exams').innerHTML = ex.total === 0
+    ? '<p style="font-size:13.5px; color:var(--ink-soft);">No exams recorded yet. Choose Entry type "Exam" on the Attendance page.</p>'
+    : `<p style="font-size:13.5px; color:var(--ink-soft); margin-bottom:10px;">Attended <b>${ex.present}</b> of <b>${ex.total}</b> exams (${ex.percentage}%).</p>` +
+      exRecs.map(a=>`<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-top:1px solid var(--line); font-size:13.5px;"><span>${entryLabel(a)}<div style="font-size:12px; color:var(--ink-soft);">${prettyDate(a.date)}</div></span><span class="chip ${chipClass(a)}">${statusLabel(a.status)}</span></div>`).join('');
   renderCharts();
 }
 
@@ -1641,11 +1821,7 @@ function renderCharts(){
     const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
     months.push({ key:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`, label:d.toLocaleDateString(undefined,{month:'short'}) });
   }
-  const trendData = months.map(m=>{
-    const recs = attendance.filter(a=>a.date.startsWith(m.key));
-    const present = recs.filter(a=>a.status==='present').length;
-    return pct(present, recs.length);
-  });
+  const trendData = months.map(m=> tally(recsForStats().filter(a=>a.date.startsWith(m.key))).percentage);
   chartTrend = new Chart(ctx3, {
     type:'line',
     data:{ labels: months.map(m=>m.label), datasets:[{ data: trendData, borderColor: accent, backgroundColor: accent, tension:.35, pointRadius:3, fill:false }] },
@@ -1678,7 +1854,7 @@ function renderCalendar(){
   for(let day=1; day<=daysInMonth; day++){
     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
     const recs = attendance.filter(a=>a.date===dateStr);
-    const dots = recs.slice(0,3).map(r=>`<span class="dot" style="background:var(${statusColorVar(r.status)})"></span>`).join('');
+    const dots = recs.slice(0,3).map(r=>`<span class="dot" style="background:var(${(r.type==='exam' ? '--violet' : statusColorVar(r.status))})"></span>`).join('');
     cells += `<div class="cal-cell ${dateStr===today?'today':''}" onclick="openDayDetail('${dateStr}')">
       <span>${day}</span><div style="display:flex; gap:3px;">${dots || (dateStr<=today ? '<span class="dot" style="background:var(--line-strong)"></span>' : '')}</div>
     </div>`;
@@ -1692,13 +1868,13 @@ function openDayDetail(dateStr){
   $('daydetail-title').textContent = prettyDate(dateStr);
   if(recs.length === 0){
     $('daydetail-body').innerHTML = `<p style="font-size:13.5px; color:var(--ink-soft);">No attendance recorded for this date.</p>
-      <button class="btn btn-primary btn-sm" style="margin-top:14px;" onclick="closeModal('daydetail-modal-overlay'); switchSection('attendance'); document.getElementById('att-date').value='${dateStr}'; checkDuplicateAttendance();">Record attendance</button>`;
+      <button class="btn btn-primary btn-sm" style="margin-top:14px;" onclick="closeModal('daydetail-modal-overlay'); switchSection('attendance'); document.getElementById('att-date').value='${dateStr}'; checkDuplicateAttendance();">Record attendance</button>${dayMarkButtons(dateStr)}`;
   } else {
     $('daydetail-body').innerHTML = recs.map(a=>`
       <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--line);">
         <span>${entryLabel(a)}</span>
-        <span class="chip ${a.status==='present'?'chip-success':a.status==='absent'?'chip-danger':'chip-warn'}">${statusLabel(a.status)}</span>
-      </div>`).join('') + `<button class="btn btn-outline btn-sm" style="margin-top:14px;" onclick="closeModal('daydetail-modal-overlay'); switchSection('attendance'); document.getElementById('att-date').value='${dateStr}'; checkDuplicateAttendance();">Add another class</button>`;
+        <span class="chip ${chipClass(a)}">${recordLabel(a)}</span>
+      </div>`).join('') + `<button class="btn btn-outline btn-sm" style="margin-top:14px;" onclick="closeModal('daydetail-modal-overlay'); switchSection('attendance'); document.getElementById('att-date').value='${dateStr}'; checkDuplicateAttendance();">Add another class</button>${dayMarkButtons(dateStr)}`;
   }
   openModal('daydetail-modal-overlay');
 }
@@ -1772,6 +1948,8 @@ function renderReport(){
       <div class="stat-card"><div class="num">${stats.present}</div><div class="lbl">Present</div></div>
       <div class="stat-card"><div class="num">${stats.absent}</div><div class="lbl">Absent</div></div>
       <div class="stat-card"><div class="num">${target}%</div><div class="lbl">Target</div></div>
+      <div class="stat-card"><div class="num">${examStats().present}/${examStats().total}</div><div class="lbl">Exams attended</div></div>
+      <div class="stat-card"><div class="num">${stats.skipped}</div><div class="lbl">Holidays / not held</div></div>
     </div>
     <div class="card" style="margin-bottom:16px;">
       <p style="font-size:13.5px; color:var(--ink-soft); line-height:1.6;">${missOrNeedText(stats.present, stats.total, target)}</p>
@@ -1785,18 +1963,18 @@ function renderReport(){
     <div class="card">
       <div class="card-head"><h3>Full attendance history</h3></div>
       <div class="table-wrap"><table class="responsive-cards"><thead><tr><th>Date</th><th>Subject</th><th>Status</th></tr></thead><tbody>
-        ${sorted.map(a=>`<tr><td data-label="Date">${prettyDate(a.date)}</td><td data-label="Subject">${entryLabel(a)}</td><td data-label="Status">${statusLabel(a.status)}</td></tr>`).join('') || '<tr><td colspan="3" style="text-align:center; color:var(--ink-soft);">No records yet.</td></tr>'}
+        ${sorted.map(a=>`<tr><td data-label="Date">${prettyDate(a.date)}</td><td data-label="Subject">${entryLabel(a)}</td><td data-label="Status">${recordLabel(a)}</td></tr>`).join('') || '<tr><td colspan="3" style="text-align:center; color:var(--ink-soft);">No records yet.</td></tr>'}
       </tbody></table></div>
     </div>`;
 }
 
 function exportCSV(){
   if(attendance.length === 0){ showToast('No attendance data to export', 'error'); return; }
-  const rows = [['Date','Subject','Class #','Status']];
+  const rows = [['Date','Subject','Class #','Type','Status','Exam type','Period','Note']];
   [...attendance].sort((a,b)=> a.date < b.date ? -1 : 1).forEach(a=>{
     const siblings = entriesForSubjectDate(a.subjectId, a.date);
     const slot = a.slot || (siblings.findIndex(s=>s.id===a.id) + 1);
-    rows.push([a.date, subjectName(a.subjectId), slot, statusLabel(a.status)]);
+    rows.push([a.date, subjectName(a.subjectId), slot, (a.type||'class'), statusLabel(a.status), a.examType||'', a.period||'', a.note||'']);
   });
   const csv = rows.map(r=> r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
   const blob = new Blob([csv], { type:'text/csv' });
@@ -1820,7 +1998,8 @@ function exportPDF(){
   doc.text(`${profileData.fullName || ''}   ${profileData.rollNumber || ''}`, 14, y); y += 6;
   doc.text(`${profileData.college || ''}`, 14, y); y += 10;
   doc.setFontSize(12); doc.text(`Overall: ${stats.percentage}%  (Target ${target}%)`, 14, y); y += 6;
-  doc.text(`Total: ${stats.total}   Present: ${stats.present}   Absent: ${stats.absent}   Leave: ${stats.leave}`, 14, y); y += 10;
+  doc.text(`Total: ${stats.total}   Present: ${stats.present}   Absent: ${stats.absent}   Leave: ${stats.leave}`, 14, y); y += 6;
+  doc.text(`Exams attended: ${examStats().present}/${examStats().total}   Holidays / not held: ${stats.skipped}`, 14, y); y += 10;
 
   doc.setFontSize(13); doc.text('Subject-wise', 14, y); y += 7;
   doc.setFontSize(10);
