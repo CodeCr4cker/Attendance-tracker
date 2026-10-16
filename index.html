@@ -802,6 +802,7 @@ tr:last-child td{border-bottom:none;}
             <li><b>Substitution:</b> record who took the class and whether you attended.</li>
             <li><b>Period and note:</b> optional details, shown in history, reports and CSV.</li>
             <li><b>Future dates:</b> allowed only for holiday, suspended, cancelled and event entries.</li>
+            <li><b>Weekends:</b> Saturday and Sunday are added as holidays automatically at 9:00 a.m. (configurable in Settings). Edit the record, or log attendance beforehand, to make that day a working day. Records are added when Ledger is open, and any missed weekend is added the next time you open it.</li>
             <li><b>Rules:</b> in Settings, decide whether late, on-duty and medical leave count as present.</li>
             <li><b>Edit or delete:</b> use the pencil and bin icons in Recent entries or History.</li>
           </ul>
@@ -819,6 +820,17 @@ tr:last-child td{border-bottom:none;}
             </div>
             <button class="btn btn-outline btn-sm" onclick="toggleTheme()" id="settings-theme-btn">Switch to dark</button>
           </div>
+        </div>
+        <div class="card" style="max-width:520px; margin-top:16px;">
+          <div class="card-head"><h3>Weekend holidays</h3></div>
+          <p style="font-size:13px; color:var(--ink-soft); margin-bottom:12px;">Saturday and Sunday are holidays by default. At the time below, Ledger adds a Holiday record for every subject. Edit or delete a record to change it, or log attendance before that time for a working weekend.</p>
+          <div style="display:flex; flex-direction:column; gap:10px; font-size:14px;">
+            <label><input type="checkbox" id="wk-enabled"> Auto-add weekend holidays</label>
+            <label><input type="checkbox" id="wk-sat"> Saturday</label>
+            <label><input type="checkbox" id="wk-sun"> Sunday</label>
+            <label>Add at <input type="time" id="wk-time" value="09:00" style="margin-left:6px; padding:6px 8px; border:1px solid var(--line-strong); border-radius:7px; background:var(--paper-raised); color:var(--ink);"></label>
+          </div>
+          <button class="btn btn-primary btn-sm" style="margin-top:16px;" onclick="saveWeekendCfg()">Save weekend settings</button>
         </div>
         <div class="card" style="max-width:520px; margin-top:16px;">
           <div class="card-head"><h3>Attendance rules</h3></div>
@@ -1206,7 +1218,7 @@ auth.onAuthStateChanged(async (user)=>{
     switchSection('dashboard');
   } else {
     currentUser = null;
-    profileData = {}; subjects = []; attendance = [];
+    profileData = {}; subjects = []; attendance = []; subjectsLoaded = false; attLoaded = false;
     if(unsubSubjects) unsubSubjects();
     if(unsubAttendance) unsubAttendance();
     $('app-shell').classList.remove('active');
@@ -1238,6 +1250,7 @@ function fillProfileForm(){
   $('pf-year').value = profileData.academicYear || '';
   $('pf-target').value = profileData.targetPercentage || 75;
   fillRulesForm();
+  fillWeekendForm();
 }
 $('profile-form').addEventListener('submit', async (e)=>{
   e.preventDefault();
@@ -1281,6 +1294,7 @@ function attachSubjectsListener(){
       populateSubjectSelects();
       renderDashboard();
       renderReport();
+      subjectsLoaded = true; syncWeekends();
     }, err=>{ showToast('Could not load subjects', 'error'); });
 }
 
@@ -1439,6 +1453,7 @@ function attachAttendanceListener(){
       renderDashboard();
       renderCalendar();
       renderReport();
+      attLoaded = true; syncWeekends();
     }, err=>{ showToast('Could not load attendance', 'error'); });
 }
 
@@ -1495,6 +1510,65 @@ function initFilters(){
   $('hist-status-filter').innerHTML = '<option value="">All statuses</option>' + Object.keys(STATUS).map(k=>`<option value="${k}">${STATUS[k].l}</option>`).join('');
   $('guide-status-body').innerHTML = Object.values(STATUS).map(s=>`<tr><td><span class="chip ${s.chip}">${s.l}</span></td><td>${s.d}</td></tr>`).join('');
 }
+let subjectsLoaded = false, attLoaded = false, weekendSyncing = false;
+function getWeekendCfg(){ return { enabled:true, sat:true, sun:true, time:'09:00', ...(profileData.weekend||{}) }; }
+function fillWeekendForm(){
+  const c=getWeekendCfg();
+  $('wk-enabled').checked=c.enabled; $('wk-sat').checked=c.sat; $('wk-sun').checked=c.sun; $('wk-time').value=c.time;
+}
+async function saveWeekendCfg(){
+  const weekend = { enabled:$('wk-enabled').checked, sat:$('wk-sat').checked, sun:$('wk-sun').checked, time:$('wk-time').value || '09:00' };
+  try{
+    await db.collection('users').doc(currentUser.uid).set({ weekend, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge:true });
+    profileData.weekend = weekend;
+    showToast('Weekend settings saved', 'success');
+    syncWeekends();
+  }catch(err){ showToast('Could not save weekend settings', 'error'); }
+}
+// Adds Holiday records for weekend days that have passed their trigger time.
+// Skips any subject that already has a class entry that day (so edits and working weekends are respected).
+async function syncWeekends(){
+  if(!currentUser || !subjectsLoaded || !attLoaded || weekendSyncing || !subjects.length) return;
+  const cfg = getWeekendCfg();
+  if(!cfg.enabled) return;
+  weekendSyncing = true;
+  try{
+    const now = new Date();
+    const nowHM = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+    const today = todayStr();
+    const lastDone = nowHM >= cfg.time ? today : formatDateLocal(new Date(now.getFullYear(), now.getMonth(), now.getDate()-1));
+    let from;
+    if(profileData.weekendSyncedThrough){
+      const d = parseDateLocal(profileData.weekendSyncedThrough); d.setDate(d.getDate()+1); from = d;
+    } else {
+      const created = currentUser.metadata && currentUser.metadata.creationTime ? new Date(currentUser.metadata.creationTime) : now;
+      from = new Date(created.getFullYear(), created.getMonth(), created.getDate());
+    }
+    const limit = new Date(now.getFullYear(), now.getMonth(), now.getDate()-120);
+    if(from < limit) from = limit;
+    if(formatDateLocal(from) > lastDone) return;
+    const coll = db.collection('users').doc(currentUser.uid).collection('attendance');
+    const ts = firebase.firestore.FieldValue.serverTimestamp();
+    const batch = db.batch(); let n = 0;
+    for(let d = new Date(from); formatDateLocal(d) <= lastDone; d.setDate(d.getDate()+1)){
+      const dow = d.getDay();
+      if(!((dow===6 && cfg.sat) || (dow===0 && cfg.sun))) continue;
+      const ds = formatDateLocal(d);
+      subjects.forEach(sub=>{
+        if(entriesForSubjectDate(sub.id, ds, 'class').length) return;
+        batch.set(coll.doc(`auto_${ds}_${sub.id}`), { type:'class', status:'holiday', subjectId:sub.id, date:ds, slot:1, period:'', note: dow===6?'Saturday (auto)':'Sunday (auto)', examType:'', subBy:'', attendedSub:null, auto:true, createdAt:ts, updatedAt:ts });
+        n++;
+      });
+    }
+    if(n) await batch.commit();
+    await db.collection('users').doc(currentUser.uid).set({ weekendSyncedThrough: lastDone }, { merge:true });
+    profileData.weekendSyncedThrough = lastDone;
+    if(n) showToast(`Weekend holiday added (${n} record${n===1?'':'s'})`, 'info');
+  }catch(err){ /* retried on next check */ }
+  finally{ weekendSyncing = false; }
+}
+setInterval(syncWeekends, 60000);
+
 function fillRulesForm(){
   const r=getRules();
   $('rule-late').checked=r.late; $('rule-onduty').checked=r.onDuty; $('rule-medical').checked=r.medical; $('rule-exams').checked=r.exams;
