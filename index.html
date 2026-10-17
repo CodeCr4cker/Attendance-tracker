@@ -572,6 +572,7 @@ tr:last-child td{border-bottom:none;}
       <button class="side-link active" data-target="dashboard"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>Dashboard</button>
       <button class="side-link" data-target="attendance"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>Attendance</button>
       <button class="side-link" data-target="subjects"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>Subjects</button>
+      <button class="side-link" data-target="timetable"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Timetable</button>
       <button class="side-link" data-target="calendar"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg>Calendar</button>
       <button class="side-link" data-target="reports"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>Reports</button>
       <button class="side-link" data-target="calculator"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 7h6M9 11h6M9 15h3"/></svg>Calculator</button>
@@ -697,6 +698,77 @@ tr:last-child td{border-bottom:none;}
       </section>
 
       <!-- CALENDAR -->
+      <section class="section" id="section-timetable">
+        <div class="dash-grid">
+          <div class="card">
+            <div class="card-head"><h3>Semester &amp; auto-marking</h3></div>
+            <div class="row-2">
+              <div class="field"><label>Current semester</label><select id="sem-number"><option value="1">Semester 1</option><option value="2">Semester 2</option><option value="3">Semester 3</option><option value="4">Semester 4</option><option value="5">Semester 5</option><option value="6">Semester 6</option><option value="7">Semester 7</option><option value="8">Semester 8</option></select></div>
+              <div class="field"><label>Semester start date</label><input type="date" id="sem-start"></div>
+            </div>
+            <div class="field"><label>Auto-mark lectures and exams as</label>
+              <select id="sem-status"><option value="present">Present (edit the ones you missed)</option><option value="absent">Absent (edit the ones you attended)</option></select></div>
+            <label style="display:flex; gap:8px; align-items:center; font-size:14px; margin-bottom:12px;"><input type="checkbox" id="sem-auto" style="width:auto; padding:0;"> Automatically record attendance when a lecture or exam ends</label>
+            <p style="font-size:12.5px; color:var(--ink-soft); margin-bottom:12px;">Records are added from the start date onwards when Ledger is open (missed ones are added next time you open it). Anything you already recorded by hand for that lecture is kept, and holidays are skipped.</p>
+            <button class="btn btn-primary btn-sm" onclick="saveSemester()">Save semester</button>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3>Add lecture slot</h3></div>
+            <form id="tt-form">
+              <div class="field"><label>Subject</label><select id="tt-subject" required></select></div>
+              <div class="field"><label>Days</label><div style="display:flex; flex-wrap:wrap; gap:10px;"><label style="display:inline-flex; gap:5px; align-items:center; font-size:13.5px;"><input type="checkbox" class="tt-day" value="1" style="width:auto; padding:0;"> Mon</label><label style="display:inline-flex; gap:5px; align-items:center; font-size:13.5px;"><input type="checkbox" class="tt-day" value="2" style="width:auto; padding:0;"> Tue</label><label style="display:inline-flex; gap:5px; align-items:center; font-size:13.5px;"><input type="checkbox" class="tt-day" value="3" style="width:auto; padding:0;"> Wed</label><label style="display:inline-flex; gap:5px; align-items:center; font-size:13.5px;"><input type="checkbox" class="tt-day" value="4" style="width:auto; padding:0;"> Thu</label><label style="display:inline-flex; gap:5px; align-items:center; font-size:13.5px;"><input type="checkbox" class="tt-day" value="5" style="width:auto; padding:0;"> Fri</label><label style="display:inline-flex; gap:5px; align-items:center; font-size:13.5px;"><input type="checkbox" class="tt-day" value="6" style="width:auto; padding:0;"> Sat</label><label style="display:inline-flex; gap:5px; align-items:center; font-size:13.5px;"><input type="checkbox" class="tt-day" value="0" style="width:auto; padding:0;"> Sun</label></div></div>
+              <div class="row-2">
+                <div class="field"><label>Starts</label><input type="time" id="tt-start" required></div>
+                <div class="field"><label>Ends</label><input type="time" id="tt-end" required></div>
+              </div>
+              <div class="field"><label>Room (optional)</label><input type="text" id="tt-room" maxlength="40" placeholder="e.g. Room 204"></div>
+              <button class="btn btn-primary" type="submit">Add to timetable</button>
+            </form>
+          </div>
+        </div>
+        <div class="card" style="margin-top:18px;">
+          <div class="card-head"><h3 id="tt-week-title">Weekly timetable</h3></div>
+          <div id="tt-week"></div>
+        </div>
+        <div class="dash-grid" style="margin-top:18px;">
+          <div class="card">
+            <div class="card-head"><h3>Add exam</h3></div>
+            <form id="ex-form">
+              <div class="field"><label>Subject</label><select id="ex-subject" required></select></div>
+              <div class="field"><label>Exam type</label>
+                <select id="ex-type"><option>Internal / Class test</option><option>Mid-semester</option><option>End-semester</option><option>Practical / Lab</option><option>Viva</option><option>Quiz / Assignment</option><option>Other</option></select></div>
+              <div class="field"><label>Date</label><input type="date" id="ex-date" required></div>
+              <div class="row-2">
+                <div class="field"><label>Starts</label><input type="time" id="ex-start" required></div>
+                <div class="field"><label>Ends</label><input type="time" id="ex-end" required></div>
+              </div>
+              <div class="field"><label>Room (optional)</label><input type="text" id="ex-room" maxlength="40"></div>
+              <button class="btn btn-primary" type="submit">Add to exam timetable</button>
+            </form>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3 id="ex-title">Exam timetable</h3></div>
+            <div id="ex-list"></div>
+          </div>
+        </div>
+      <div class="card" style="margin-top:18px;">
+          <div class="card-head"><h3>College &amp; festival holidays</h3></div>
+          <p style="font-size:13px; color:var(--ink-soft); margin-bottom:12px;">Add a holiday in advance. It is recorded automatically as a Holiday for every subject (including subjects you add later), and timetable auto-marking skips those days.</p>
+          <form id="hol-form">
+            <datalist id="hol-names"><option value="Diwali"><option value="Holi"><option value="Eid"><option value="Christmas"><option value="Dussehra"><option value="Republic Day"><option value="Independence Day"><option value="Gandhi Jayanti"><option value="Raksha Bandhan"><option value="Ganesh Chaturthi"><option value="Makar Sankranti"><option value="Pongal"><option value="Onam"><option value="Good Friday"><option value="College foundation day"></datalist>
+            <div class="row-2">
+              <div class="field"><label>Holiday name</label><input type="text" id="hol-name" list="hol-names" maxlength="60" required placeholder="e.g. Diwali"></div>
+              <div class="field"><label>From</label><input type="date" id="hol-from" required></div>
+            </div>
+            <div class="row-2">
+              <div class="field"><label>To (optional, for a break of several days)</label><input type="date" id="hol-to"></div>
+              <div class="field" style="align-self:end;"><button class="btn btn-primary" type="submit" style="width:100%;">Add holiday</button></div>
+            </div>
+          </form>
+          <div id="hol-list" style="margin-top:8px;"></div>
+        </div>
+      </section>
+
       <section class="section" id="section-calendar">
         <div class="card">
           <div class="cal-head">
@@ -802,6 +874,8 @@ tr:last-child td{border-bottom:none;}
             <li><b>Substitution:</b> record who took the class and whether you attended.</li>
             <li><b>Period and note:</b> optional details, shown in history, reports and CSV.</li>
             <li><b>Future dates:</b> allowed only for holiday, suspended, cancelled and event entries.</li>
+            <li><b>Timetable:</b> choose your semester (1 to 8) and add weekly lecture slots and an exam timetable. When a lecture or exam ends, attendance is recorded automatically (Present by default). Edit any record you missed; your own manual entries and holidays are never overwritten.</li>
+            <li><b>College holidays:</b> add festivals or breaks (single day or a range) on the Timetable page. They are recorded as Holiday for all subjects automatically, and replace any timetable auto-marked attendance for those days. Your own manual entries are kept.</li>
             <li><b>Weekends:</b> Saturday and Sunday are added as holidays automatically at 9:00 a.m. (configurable in Settings). Edit the record, or log attendance beforehand, to make that day a working day. Records are added when Ledger is open, and any missed weekend is added the next time you open it.</li>
             <li><b>Rules:</b> in Settings, decide whether late, on-duty and medical leave count as present.</li>
             <li><b>Edit or delete:</b> use the pencil and bin icons in Recent entries or History.</li>
@@ -1081,7 +1155,7 @@ function showAuth(which){
   document.getElementById('auth-'+which).classList.remove('hidden');
 }
 
-const SECTION_TITLES = {dashboard:'Dashboard', attendance:'Attendance', subjects:'Subjects', calendar:'Calendar', reports:'Reports', calculator:'Calculator', profile:'Profile', settings:'Settings', guide:'Guide'};
+const SECTION_TITLES = {dashboard:'Dashboard', attendance:'Attendance', subjects:'Subjects', calendar:'Calendar', reports:'Reports', calculator:'Calculator', profile:'Profile', settings:'Settings', guide:'Guide', timetable:'Timetable'};
 let sectionLoaderTimer = null;
 
 function toggleSidebar(){
@@ -1215,10 +1289,14 @@ auth.onAuthStateChanged(async (user)=>{
     await loadProfile();
     attachSubjectsListener();
     attachAttendanceListener();
+    attachTimetableListeners();
+    attachHolidayListener();
     switchSection('dashboard');
   } else {
     currentUser = null;
-    profileData = {}; subjects = []; attendance = []; subjectsLoaded = false; attLoaded = false;
+    profileData = {}; subjects = []; attendance = []; subjectsLoaded = false; attLoaded = false; ttLoaded = false; exLoaded = false; holLoaded = false; timetable = []; examtable = []; holidays = [];
+    if(unsubHol) unsubHol();
+    if(unsubTT) unsubTT(); if(unsubEX) unsubEX();
     if(unsubSubjects) unsubSubjects();
     if(unsubAttendance) unsubAttendance();
     $('app-shell').classList.remove('active');
@@ -1251,6 +1329,7 @@ function fillProfileForm(){
   $('pf-target').value = profileData.targetPercentage || 75;
   fillRulesForm();
   fillWeekendForm();
+  fillSemesterForm();
 }
 $('profile-form').addEventListener('submit', async (e)=>{
   e.preventDefault();
@@ -1294,7 +1373,7 @@ function attachSubjectsListener(){
       populateSubjectSelects();
       renderDashboard();
       renderReport();
-      subjectsLoaded = true; syncWeekends();
+      subjectsLoaded = true; syncHolidays(); syncWeekends(); syncTimetable();
     }, err=>{ showToast('Could not load subjects', 'error'); });
 }
 
@@ -1435,6 +1514,8 @@ function populateSubjectSelects(){
   const opts = subjects.map(s=>`<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
   const placeholder = subjects.length ? '' : '<option value="">Add a subject first</option>';
   $('att-subject').innerHTML = placeholder + opts;
+  $('tt-subject').innerHTML = placeholder + opts;
+  $('ex-subject').innerHTML = placeholder + opts;
   $('hist-subject-filter').innerHTML = '<option value="">All subjects</option>' + opts;
 }
 
@@ -1453,7 +1534,7 @@ function attachAttendanceListener(){
       renderDashboard();
       renderCalendar();
       renderReport();
-      attLoaded = true; syncWeekends();
+      attLoaded = true; syncHolidays(); syncWeekends(); syncTimetable();
     }, err=>{ showToast('Could not load attendance', 'error'); });
 }
 
@@ -1528,7 +1609,7 @@ async function saveWeekendCfg(){
 // Adds Holiday records for weekend days that have passed their trigger time.
 // Skips any subject that already has a class entry that day (so edits and working weekends are respected).
 async function syncWeekends(){
-  if(!currentUser || !subjectsLoaded || !attLoaded || weekendSyncing || !subjects.length) return;
+  if(!currentUser || !subjectsLoaded || !attLoaded || !ttLoaded || !holLoaded || weekendSyncing || !subjects.length) return;
   const cfg = getWeekendCfg();
   if(!cfg.enabled) return;
   weekendSyncing = true;
@@ -1552,9 +1633,11 @@ async function syncWeekends(){
     const batch = db.batch(); let n = 0;
     for(let d = new Date(from); formatDateLocal(d) <= lastDone; d.setDate(d.getDate()+1)){
       const dow = d.getDay();
+      if(isCollegeHoliday(formatDateLocal(d))) continue;
       if(!((dow===6 && cfg.sat) || (dow===0 && cfg.sun))) continue;
       const ds = formatDateLocal(d);
       subjects.forEach(sub=>{
+        if(ttHasSlot(sub.id, dow)) return;
         if(entriesForSubjectDate(sub.id, ds, 'class').length) return;
         batch.set(coll.doc(`auto_${ds}_${sub.id}`), { type:'class', status:'holiday', subjectId:sub.id, date:ds, slot:1, period:'', note: dow===6?'Saturday (auto)':'Sunday (auto)', examType:'', subBy:'', attendedSub:null, auto:true, createdAt:ts, updatedAt:ts });
         n++;
@@ -1568,6 +1651,216 @@ async function syncWeekends(){
   finally{ weekendSyncing = false; }
 }
 setInterval(syncWeekends, 60000);
+
+
+/* ================================================================
+   SECTION: TIMETABLE, EXAM TIMETABLE, SEMESTER
+   ================================================================ */
+let timetable = [], examtable = [], unsubTT = null, unsubEX = null, ttLoaded = false, exLoaded = false, ttSyncing = false;
+const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+function getSem(){ return { number:1, startDate:todayStr(), autoEnabled:true, autoStatus:'present', ...(profileData.semester||{}) }; }
+function ttHasSlot(subjectId, dow){ const n=getSem().number; return timetable.some(t=>t.semester===n && t.subjectId===subjectId && t.day===dow); }
+function fillSemesterForm(){
+  const m=getSem();
+  $('sem-number').value=m.number; $('sem-start').value=m.startDate; $('sem-status').value=m.autoStatus; $('sem-auto').checked=m.autoEnabled;
+}
+async function saveSemester(){
+  const old=getSem();
+  const semester={ number:Number($('sem-number').value), startDate:$('sem-start').value || todayStr(), autoEnabled:$('sem-auto').checked, autoStatus:$('sem-status').value };
+  const data={ semester, updatedAt:firebase.firestore.FieldValue.serverTimestamp() };
+  if(semester.number!==old.number || semester.startDate!==old.startDate){ data.ttSynced = semester.startDate+'T00:00'; }
+  try{
+    await db.collection('users').doc(currentUser.uid).set(data,{merge:true});
+    profileData.semester=semester; if(data.ttSynced) profileData.ttSynced=data.ttSynced;
+    renderTimetable(); showToast('Semester saved','success'); syncTimetable();
+  }catch(err){ showToast('Could not save semester','error'); }
+}
+function attachTimetableListeners(){
+  const base=db.collection('users').doc(currentUser.uid);
+  if(unsubTT) unsubTT(); if(unsubEX) unsubEX();
+  unsubTT=base.collection('timetable').onSnapshot(snap=>{ timetable=snap.docs.map(d=>({id:d.id,...d.data()})); ttLoaded=true; renderTimetable(); syncTimetable(); }, ()=>showToast('Could not load timetable','error'));
+  unsubEX=base.collection('examtable').onSnapshot(snap=>{ examtable=snap.docs.map(d=>({id:d.id,...d.data()})); exLoaded=true; renderTimetable(); syncTimetable(); }, ()=>showToast('Could not load exam timetable','error'));
+}
+const TRASH='<svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>';
+function renderTimetable(){
+  const n=getSem().number, today=todayStr();
+  $('tt-week-title').textContent=`Semester ${n}: weekly timetable`;
+  $('ex-title').textContent=`Semester ${n}: exam timetable`;
+  const slots=timetable.filter(t=>t.semester===n);
+  $('tt-week').innerHTML = slots.length ? [1,2,3,4,5,6,0].map(d=>{
+    const list=slots.filter(t=>t.day===d).sort((a,b)=>a.start.localeCompare(b.start));
+    if(!list.length) return '';
+    return `<div style="padding:10px 0; border-top:1px solid var(--line);"><div style="font-weight:600; margin-bottom:6px;">${DAY_NAMES[d]}</div>`+list.map(t=>`<div style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:4px 0; font-size:14px;"><span><b>${t.start}–${t.end}</b> &nbsp;${escapeHtml(subjectName(t.subjectId))}${t.room?` <span style="color:var(--ink-soft);">· ${escapeHtml(t.room)}</span>`:''}</span><button class="icon-btn" title="Remove" onclick="deleteTTDoc('timetable','${t.id}')">${TRASH}</button></div>`).join('')+'</div>';
+  }).join('') : '<p style="font-size:13.5px; color:var(--ink-soft);">No lecture slots for this semester yet.</p>';
+  const exams=examtable.filter(e=>e.semester===n).sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start));
+  $('ex-list').innerHTML = exams.length ? exams.map(e=>`<div style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:9px 0; border-top:1px solid var(--line); font-size:14px;"><span><b>${escapeHtml(subjectName(e.subjectId))}</b> <span class="chip chip-exam" style="padding:2px 8px; font-size:11.5px;">${escapeHtml(e.examType)}</span><div style="font-size:12.5px; color:var(--ink-soft);">${prettyDate(e.date)} · ${e.start}–${e.end}${e.room?' · '+escapeHtml(e.room):''} · ${e.date<today||(e.date===today&&e.end<=new Date().toTimeString().slice(0,5))?'Done':'Upcoming'}</div></span><button class="icon-btn" title="Remove" onclick="deleteTTDoc('examtable','${e.id}')">${TRASH}</button></div>`).join('') : '<p style="font-size:13.5px; color:var(--ink-soft);">No exams scheduled for this semester.</p>';
+}
+function deleteTTDoc(coll,id){
+  askConfirm('Remove this entry?','Attendance already recorded is not affected.', async ()=>{
+    try{ await db.collection('users').doc(currentUser.uid).collection(coll).doc(id).delete(); showToast('Removed','success'); }
+    catch(err){ showToast('Could not remove','error'); }
+  });
+}
+$('tt-form').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const subjectId=$('tt-subject').value, start=$('tt-start').value, end=$('tt-end').value, room=$('tt-room').value.trim();
+  const days=[...document.querySelectorAll('.tt-day:checked')].map(x=>Number(x.value));
+  if(!subjectId){ showToast('Add a subject first','error'); return; }
+  if(!days.length){ showToast('Choose at least one day','error'); return; }
+  if(start>=end){ showToast('End time must be after start time','error'); return; }
+  const n=getSem().number;
+  for(const d of days){
+    const clash=timetable.find(t=>t.semester===n && t.day===d && t.start<end && start<t.end);
+    if(clash){ showToast(`Overlaps with ${subjectName(clash.subjectId)} on ${DAY_NAMES[d]}`,'error'); return; }
+  }
+  try{
+    const coll=db.collection('users').doc(currentUser.uid).collection('timetable');
+    const ts=firebase.firestore.FieldValue.serverTimestamp();
+    await Promise.all(days.map(day=>coll.add({ semester:n, subjectId, day, start, end, room, createdAt:ts })));
+    document.querySelectorAll('.tt-day').forEach(x=>x.checked=false);
+    showToast('Lecture slot added','success');
+  }catch(err){ showToast('Could not add slot','error'); }
+});
+$('ex-form').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const subjectId=$('ex-subject').value, start=$('ex-start').value, end=$('ex-end').value;
+  if(!subjectId){ showToast('Add a subject first','error'); return; }
+  if(start>=end){ showToast('End time must be after start time','error'); return; }
+  try{
+    await db.collection('users').doc(currentUser.uid).collection('examtable').add({ semester:getSem().number, subjectId, examType:$('ex-type').value, date:$('ex-date').value, start, end, room:$('ex-room').value.trim(), createdAt:firebase.firestore.FieldValue.serverTimestamp() });
+    $('ex-room').value='';
+    showToast('Exam added','success');
+  }catch(err){ showToast('Could not add exam','error'); }
+});
+// Records attendance for lectures/exams whose end time has passed since the last check.
+async function syncTimetable(){
+  if(!currentUser || !subjectsLoaded || !attLoaded || !ttLoaded || !exLoaded || !holLoaded || ttSyncing) return;
+  const sem=getSem(); if(!sem.autoEnabled) return;
+  ttSyncing=true;
+  try{
+    const now=new Date(), today=todayStr(), nowKey=`${today}T${now.toTimeString().slice(0,5)}`;
+    let ptr=profileData.ttSynced || (sem.startDate+'T00:00');
+    const minDate=formatDateLocal(new Date(now.getFullYear(),now.getMonth(),now.getDate()-120));
+    if(ptr.slice(0,10)<minDate) ptr=minDate+'T00:00';
+    if(ptr>=nowKey) return;
+    const ops=[], added={}, coll=db.collection('users').doc(currentUser.uid).collection('attendance');
+    const ts=firebase.firestore.FieldValue.serverTimestamp();
+    const mine=timetable.filter(t=>t.semester===sem.number && subjects.some(x=>x.id===t.subjectId));
+    for(let d=parseDateLocal(ptr.slice(0,10)); formatDateLocal(d)<=today; d.setDate(d.getDate()+1)){
+      const ds=formatDateLocal(d);
+      if(isCollegeHoliday(ds)) continue;
+      mine.filter(t=>t.day===d.getDay()).forEach(t=>{
+        const endKey=`${ds}T${t.end}`;
+        if(endKey<=ptr || endKey>nowKey) return;
+        const id=`tt_${ds}_${t.id}`;
+        if(attendance.some(a=>a.id===id)) return;
+        const ents=entriesForSubjectDate(t.subjectId,ds,'class');
+        if(ents.some(a=>SKIP_STATUSES.includes(a.status))) return;
+        const same=mine.filter(x=>x.subjectId===t.subjectId && x.day===t.day).sort((a,b)=>a.start.localeCompare(b.start));
+        if(same.findIndex(x=>x.id===t.id) < ents.filter(a=>!a.auto).length) return; // already recorded by hand
+        const key=t.subjectId+ds; added[key]=(added[key]||0)+1;
+        ops.push([coll.doc(id), { type:'class', status:sem.autoStatus, subjectId:t.subjectId, date:ds, slot:ents.length+added[key], period:`${t.start}–${t.end}`, note:'Timetable (auto)', examType:'', subBy:'', attendedSub:null, auto:true, semester:sem.number, createdAt:ts, updatedAt:ts }]);
+      });
+    }
+    examtable.filter(e=>e.semester===sem.number && e.date<=today && subjects.some(x=>x.id===e.subjectId)).forEach(e=>{
+      const endKey=`${e.date}T${e.end}`;
+      if(endKey<=ptr || endKey>nowKey) return;
+      const id=`ex_${e.id}`;
+      if(attendance.some(a=>a.id===id || (a.type==='exam' && a.subjectId===e.subjectId && a.date===e.date))) return;
+      ops.push([coll.doc(id), { type:'exam', status:sem.autoStatus, subjectId:e.subjectId, date:e.date, slot:1, period:`${e.start}–${e.end}`, note:'Exam timetable (auto)', examType:e.examType, subBy:'', attendedSub:null, auto:true, semester:sem.number, createdAt:ts, updatedAt:ts }]);
+    });
+    for(let i=0;i<ops.length;i+=400){
+      const b=db.batch(); ops.slice(i,i+400).forEach(([ref,data])=>b.set(ref,data)); await b.commit();
+    }
+    await db.collection('users').doc(currentUser.uid).set({ ttSynced:nowKey },{merge:true});
+    profileData.ttSynced=nowKey;
+    if(ops.length) showToast(`Timetable: ${ops.length} attendance record${ops.length===1?'':'s'} added`,'info');
+  }catch(err){ /* retried on next check */ }
+  finally{ ttSyncing=false; }
+}
+setInterval(syncTimetable, 60000);
+
+
+/* ================================================================
+   SECTION: COLLEGE / FESTIVAL HOLIDAYS
+   ================================================================ */
+let holidays = [], unsubHol = null, holLoaded = false, holSyncing = false;
+function isCollegeHoliday(ds){ return holidays.some(h=>ds>=h.from && ds<=(h.to||h.from)); }
+function holidayDates(h){
+  const out=[]; for(let d=parseDateLocal(h.from); formatDateLocal(d)<=(h.to||h.from); d.setDate(d.getDate()+1)) out.push(formatDateLocal(d));
+  return out;
+}
+function attachHolidayListener(){
+  if(unsubHol) unsubHol();
+  unsubHol = db.collection('users').doc(currentUser.uid).collection('holidays')
+    .onSnapshot(snap=>{
+      holidays = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.from.localeCompare(b.from));
+      holLoaded = true; renderHolidays(); syncHolidays(); syncWeekends(); syncTimetable();
+    }, ()=>showToast('Could not load holidays','error'));
+}
+function renderHolidays(){
+  const today=todayStr();
+  $('hol-list').innerHTML = holidays.length ? holidays.map(h=>{
+    const range = h.to && h.to!==h.from ? `${prettyDate(h.from)} – ${prettyDate(h.to)}` : prettyDate(h.from);
+    const done = subjects.length && subjects.every(x=>(h.applied||[]).includes(x.id));
+    return `<div style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:9px 0; border-top:1px solid var(--line); font-size:14px;"><span><b>${escapeHtml(h.name)}</b><div style="font-size:12.5px; color:var(--ink-soft);">${range} · ${(h.to||h.from)<today?'Past':'Upcoming'} · ${done?'Applied to all subjects':(subjects.length?'Applying…':'Add subjects to apply')}</div></span><button class="icon-btn" title="Remove" onclick="deleteHoliday('${h.id}')">${TRASH}</button></div>`;
+  }).join('') : '<p style="font-size:13.5px; color:var(--ink-soft);">No college holidays added yet.</p>';
+}
+async function commitOps(ops){
+  const coll=db.collection('users').doc(currentUser.uid).collection('attendance');
+  for(let i=0;i<ops.length;i+=400){
+    const b=db.batch();
+    ops.slice(i,i+400).forEach(o=> o.del ? b.delete(coll.doc(o.id)) : b.set(coll.doc(o.id), o.data));
+    await b.commit();
+  }
+}
+// Applies each holiday to every subject that hasn't received it yet.
+async function syncHolidays(){
+  if(!currentUser || !subjectsLoaded || !attLoaded || !holLoaded || holSyncing || !subjects.length) return;
+  const pending = holidays.filter(h=>subjects.some(x=>!(h.applied||[]).includes(x.id)));
+  if(!pending.length) return;
+  holSyncing = true;
+  try{
+    const ts=firebase.firestore.FieldValue.serverTimestamp(), ops=[];
+    pending.forEach(h=>{
+      const missing = subjects.filter(x=>!(h.applied||[]).includes(x.id));
+      holidayDates(h).forEach(ds=>missing.forEach(sub=>{
+        const ents=entriesForSubjectDate(sub.id, ds, 'class');
+        if(ents.some(a=>SKIP_STATUSES.includes(a.status))) return;   // already a holiday/suspension
+        if(ents.some(a=>!a.auto)) return;                             // keep what you recorded by hand
+        ents.forEach(a=>ops.push({ del:true, id:a.id }));             // replace timetable auto-marks
+        ops.push({ id:`hol_${h.id}_${ds}_${sub.id}`, data:{ type:'class', status:'holiday', subjectId:sub.id, date:ds, slot:1, period:'', note:h.name, examType:'', subBy:'', attendedSub:null, auto:true, holidayId:h.id, createdAt:ts, updatedAt:ts } });
+      }));
+    });
+    await commitOps(ops);
+    const ids = subjects.map(x=>x.id);
+    await Promise.all(pending.map(h=>db.collection('users').doc(currentUser.uid).collection('holidays').doc(h.id).update({ applied:ids })));
+    if(ops.length) showToast('College holiday added to your attendance','info');
+  }catch(err){ /* retried on next change */ }
+  finally{ holSyncing = false; }
+}
+function deleteHoliday(id){
+  const h=holidays.find(x=>x.id===id); if(!h) return;
+  askConfirm('Remove this holiday?', 'The Holiday records it added to your attendance will also be removed.', async ()=>{
+    try{
+      await commitOps(attendance.filter(a=>a.holidayId===id).map(a=>({del:true,id:a.id})));
+      await db.collection('users').doc(currentUser.uid).collection('holidays').doc(id).delete();
+      showToast('Holiday removed','success');
+    }catch(err){ showToast('Could not remove holiday','error'); }
+  });
+}
+$('hol-form').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const name=$('hol-name').value.trim(), from=$('hol-from').value, to=$('hol-to').value || from;
+  if(!name || !from) return;
+  if(to<from){ showToast('"To" date must not be before "From"','error'); return; }
+  if(holidayDates({from,to}).length>31){ showToast('A holiday can span at most 31 days','error'); return; }
+  try{
+    await db.collection('users').doc(currentUser.uid).collection('holidays').add({ name, from, to, applied:[], createdAt:firebase.firestore.FieldValue.serverTimestamp() });
+    $('hol-name').value=''; $('hol-from').value=''; $('hol-to').value='';
+    showToast('Holiday added','success');
+  }catch(err){ showToast('Could not add holiday','error'); }
+});
 
 function fillRulesForm(){
   const r=getRules();
