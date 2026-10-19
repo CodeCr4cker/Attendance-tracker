@@ -320,12 +320,26 @@ table.responsive-cards{min-width:0;}
 .card-head h3{font-size:15.5px; font-family:var(--sans); font-weight:600;}
 .card-head .muted-label{font-size:12px; color:var(--ink-soft); font-family:var(--mono);}
 
-.stat-grid{display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-bottom:22px;}
+.stat-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; margin-bottom:22px;}
 .stat-card{background:var(--paper-raised); border:1px solid var(--line); border-radius:var(--radius); padding:16px 18px;}
 .stat-card .num{font-family:var(--serif); font-size:26px; font-weight:600; line-height:1;}
 .stat-card .lbl{font-size:12.5px; color:var(--ink-soft); margin-top:8px;}
-@media(max-width:1100px){.stat-grid{grid-template-columns:repeat(3,1fr);}}
 @media(max-width:640px){.stat-grid{grid-template-columns:repeat(2,1fr);}}
+.chart-box{position:relative; height:260px; width:100%;}
+.dash-grid>*,.card{min-width:0;}
+.chart-box canvas{max-width:100%;}
+@keyframes secIn{from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:none;}}
+@keyframes cardUp{from{opacity:0; transform:translateY(14px) scale(.98);} to{opacity:1; transform:none;}}
+.section.active{animation:secIn .35s ease both;}
+.section.active .stat-card{animation:cardUp .5s cubic-bezier(.2,.7,.2,1) both;}
+.section.active .stat-card:nth-child(2){animation-delay:.05s;} .section.active .stat-card:nth-child(3){animation-delay:.1s;}
+.section.active .stat-card:nth-child(4){animation-delay:.15s;} .section.active .stat-card:nth-child(5){animation-delay:.2s;} .section.active .stat-card:nth-child(6){animation-delay:.25s;}
+.section.active .dash-grid>.card, .section.active>.card{animation:cardUp .55s cubic-bezier(.2,.7,.2,1) .15s both;}
+.stat-card{transition:transform .2s ease, box-shadow .2s ease, border-color .2s ease;}
+.stat-card:hover{transform:translateY(-3px); box-shadow:0 8px 20px rgba(0,0,0,.07); border-color:var(--line-strong);}
+.ring circle:last-child{transition:stroke-dashoffset 1.1s cubic-bezier(.2,.7,.2,1), stroke .3s;}
+.tt-row{transition:background .15s;} .tt-row:hover{background:var(--line);}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important; transition:none!important;}}
 
 .dash-grid{display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:18px;}
 @media(max-width:900px){.dash-grid{grid-template-columns:1fr;}}
@@ -617,17 +631,17 @@ tr:last-child td{border-bottom:none;}
           </div>
           <div class="card">
             <div class="card-head"><h3>Present / Absent / Leave</h3></div>
-            <canvas id="chart-breakdown" height="180"></canvas>
+            <div class="chart-box"><canvas id="chart-breakdown"></canvas></div>
           </div>
         </div>
         <div class="dash-grid">
           <div class="card">
             <div class="card-head"><h3>Subject-wise attendance</h3></div>
-            <canvas id="chart-subjects" height="180"></canvas>
+            <div class="chart-box"><canvas id="chart-subjects"></canvas></div>
           </div>
           <div class="card">
             <div class="card-head"><h3>Monthly trend</h3></div>
-            <canvas id="chart-trend" height="180"></canvas>
+            <div class="chart-box"><canvas id="chart-trend"></canvas></div>
           </div>
         </div>
         <div class="card" style="margin-top:18px;">
@@ -1604,7 +1618,7 @@ async function saveWeekendCfg(){
     profileData.weekend = weekend;
     showToast('Weekend settings saved', 'success');
     syncWeekends();
-  }catch(err){ showToast('Could not save weekend settings', 'error'); }
+  }catch(err){ fbErr('Could not save weekend settings', err); }
 }
 // Adds Holiday records for weekend days that have passed their trigger time.
 // Skips any subject that already has a class entry that day (so edits and working weekends are respected).
@@ -1657,6 +1671,12 @@ setInterval(syncWeekends, 60000);
    SECTION: TIMETABLE, EXAM TIMETABLE, SEMESTER
    ================================================================ */
 let timetable = [], examtable = [], unsubTT = null, unsubEX = null, ttLoaded = false, exLoaded = false, ttSyncing = false;
+function genId(){ return Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-4); }
+function fbErr(msg, err){ showToast(msg + (err && err.code ? ` (${err.code})` : ''), 'error'); }
+async function saveUserField(obj){
+  await db.collection('users').doc(currentUser.uid).set({ ...obj, updatedAt:firebase.firestore.FieldValue.serverTimestamp() }, { merge:true });
+  Object.assign(profileData, obj);
+}
 const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 function getSem(){ return { number:1, startDate:todayStr(), autoEnabled:true, autoStatus:'present', ...(profileData.semester||{}) }; }
 function ttHasSlot(subjectId, dow){ const n=getSem().number; return timetable.some(t=>t.semester===n && t.subjectId===subjectId && t.day===dow); }
@@ -1668,18 +1688,26 @@ async function saveSemester(){
   const old=getSem();
   const semester={ number:Number($('sem-number').value), startDate:$('sem-start').value || todayStr(), autoEnabled:$('sem-auto').checked, autoStatus:$('sem-status').value };
   const data={ semester, updatedAt:firebase.firestore.FieldValue.serverTimestamp() };
-  if(semester.number!==old.number || semester.startDate!==old.startDate){ data.ttSynced = semester.startDate+'T00:00'; }
+  if(semester.startDate!==old.startDate){
+    const reset=it=>({ ...it, sync:semester.startDate+'T00:00' });
+    data.timetable=timetable.map(reset); data.examtable=examtable.map(reset);
+  }
   try{
     await db.collection('users').doc(currentUser.uid).set(data,{merge:true});
-    profileData.semester=semester; if(data.ttSynced) profileData.ttSynced=data.ttSynced;
+    profileData.semester=semester; if(data.timetable){ timetable=data.timetable; examtable=data.examtable; }
     renderTimetable(); showToast('Semester saved','success'); syncTimetable();
-  }catch(err){ showToast('Could not save semester','error'); }
+  }catch(err){ fbErr('Could not save semester', err); }
 }
 function attachTimetableListeners(){
-  const base=db.collection('users').doc(currentUser.uid);
-  if(unsubTT) unsubTT(); if(unsubEX) unsubEX();
-  unsubTT=base.collection('timetable').onSnapshot(snap=>{ timetable=snap.docs.map(d=>({id:d.id,...d.data()})); ttLoaded=true; renderTimetable(); syncTimetable(); }, ()=>showToast('Could not load timetable','error'));
-  unsubEX=base.collection('examtable').onSnapshot(snap=>{ examtable=snap.docs.map(d=>({id:d.id,...d.data()})); exLoaded=true; renderTimetable(); syncTimetable(); }, ()=>showToast('Could not load exam timetable','error'));
+  if(unsubTT) unsubTT();
+  unsubTT = db.collection('users').doc(currentUser.uid).onSnapshot(snap=>{
+    const d = snap.exists ? snap.data() : {};
+    ['semester','ttSynced','weekend','weekendSyncedThrough'].forEach(k=>{ if(d[k]!==undefined) profileData[k]=d[k]; });
+    timetable = d.timetable || []; examtable = d.examtable || [];
+    holidays = (d.holidays || []).slice().sort((a,b)=>a.from.localeCompare(b.from));
+    ttLoaded = exLoaded = holLoaded = true;
+    renderTimetable(); renderHolidays(); syncHolidays(); syncWeekends(); syncTimetable();
+  }, err=>fbErr('Could not load timetable', err));
 }
 const TRASH='<svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>';
 function renderTimetable(){
@@ -1690,15 +1718,19 @@ function renderTimetable(){
   $('tt-week').innerHTML = slots.length ? [1,2,3,4,5,6,0].map(d=>{
     const list=slots.filter(t=>t.day===d).sort((a,b)=>a.start.localeCompare(b.start));
     if(!list.length) return '';
-    return `<div style="padding:10px 0; border-top:1px solid var(--line);"><div style="font-weight:600; margin-bottom:6px;">${DAY_NAMES[d]}</div>`+list.map(t=>`<div style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:4px 0; font-size:14px;"><span><b>${t.start}–${t.end}</b> &nbsp;${escapeHtml(subjectName(t.subjectId))}${t.room?` <span style="color:var(--ink-soft);">· ${escapeHtml(t.room)}</span>`:''}</span><button class="icon-btn" title="Remove" onclick="deleteTTDoc('timetable','${t.id}')">${TRASH}</button></div>`).join('')+'</div>';
+    return `<div style="padding:10px 0; border-top:1px solid var(--line);"><div style="font-weight:600; margin-bottom:6px;">${DAY_NAMES[d]}</div>`+list.map(t=>`<div class="tt-row" style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:5px 8px; margin:0 -8px; border-radius:7px; font-size:14px;"><span><b>${t.start}–${t.end}</b> &nbsp;${escapeHtml(subjectName(t.subjectId))}${t.room?` <span style="color:var(--ink-soft);">· ${escapeHtml(t.room)}</span>`:''}</span><button class="icon-btn" title="Remove" onclick="deleteTTDoc('timetable','${t.id}')">${TRASH}</button></div>`).join('')+'</div>';
   }).join('') : '<p style="font-size:13.5px; color:var(--ink-soft);">No lecture slots for this semester yet.</p>';
   const exams=examtable.filter(e=>e.semester===n).sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start));
   $('ex-list').innerHTML = exams.length ? exams.map(e=>`<div style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:9px 0; border-top:1px solid var(--line); font-size:14px;"><span><b>${escapeHtml(subjectName(e.subjectId))}</b> <span class="chip chip-exam" style="padding:2px 8px; font-size:11.5px;">${escapeHtml(e.examType)}</span><div style="font-size:12.5px; color:var(--ink-soft);">${prettyDate(e.date)} · ${e.start}–${e.end}${e.room?' · '+escapeHtml(e.room):''} · ${e.date<today||(e.date===today&&e.end<=new Date().toTimeString().slice(0,5))?'Done':'Upcoming'}</div></span><button class="icon-btn" title="Remove" onclick="deleteTTDoc('examtable','${e.id}')">${TRASH}</button></div>`).join('') : '<p style="font-size:13.5px; color:var(--ink-soft);">No exams scheduled for this semester.</p>';
 }
 function deleteTTDoc(coll,id){
   askConfirm('Remove this entry?','Attendance already recorded is not affected.', async ()=>{
-    try{ await db.collection('users').doc(currentUser.uid).collection(coll).doc(id).delete(); showToast('Removed','success'); }
-    catch(err){ showToast('Could not remove','error'); }
+    try{
+      const list = (coll==='timetable' ? timetable : examtable).filter(x=>x.id!==id);
+      await saveUserField({ [coll]: list });
+      if(coll==='timetable') timetable=list; else examtable=list;
+      renderTimetable(); showToast('Removed','success');
+    }catch(err){ fbErr('Could not remove', err); }
   });
 }
 $('tt-form').addEventListener('submit', async e=>{
@@ -1714,12 +1746,12 @@ $('tt-form').addEventListener('submit', async e=>{
     if(clash){ showToast(`Overlaps with ${subjectName(clash.subjectId)} on ${DAY_NAMES[d]}`,'error'); return; }
   }
   try{
-    const coll=db.collection('users').doc(currentUser.uid).collection('timetable');
-    const ts=firebase.firestore.FieldValue.serverTimestamp();
-    await Promise.all(days.map(day=>coll.add({ semester:n, subjectId, day, start, end, room, createdAt:ts })));
+    const list=[...timetable, ...days.map(day=>({ id:genId(), semester:n, subjectId, day, start, end, room, sync:getSem().startDate+'T00:00' }))];
+    await saveUserField({ timetable:list });
+    timetable=list; renderTimetable();
     document.querySelectorAll('.tt-day').forEach(x=>x.checked=false);
     showToast('Lecture slot added','success');
-  }catch(err){ showToast('Could not add slot','error'); }
+  }catch(err){ fbErr('Could not add slot', err); }
 });
 $('ex-form').addEventListener('submit', async e=>{
   e.preventDefault();
@@ -1727,10 +1759,12 @@ $('ex-form').addEventListener('submit', async e=>{
   if(!subjectId){ showToast('Add a subject first','error'); return; }
   if(start>=end){ showToast('End time must be after start time','error'); return; }
   try{
-    await db.collection('users').doc(currentUser.uid).collection('examtable').add({ semester:getSem().number, subjectId, examType:$('ex-type').value, date:$('ex-date').value, start, end, room:$('ex-room').value.trim(), createdAt:firebase.firestore.FieldValue.serverTimestamp() });
+    const list=[...examtable, { id:genId(), semester:getSem().number, subjectId, examType:$('ex-type').value, date:$('ex-date').value, start, end, room:$('ex-room').value.trim(), sync:getSem().startDate+'T00:00' }];
+    await saveUserField({ examtable:list });
+    examtable=list; renderTimetable();
     $('ex-room').value='';
     showToast('Exam added','success');
-  }catch(err){ showToast('Could not add exam','error'); }
+  }catch(err){ fbErr('Could not add exam', err); }
 });
 // Records attendance for lectures/exams whose end time has passed since the last check.
 async function syncTimetable(){
@@ -1739,41 +1773,45 @@ async function syncTimetable(){
   ttSyncing=true;
   try{
     const now=new Date(), today=todayStr(), nowKey=`${today}T${now.toTimeString().slice(0,5)}`;
-    let ptr=profileData.ttSynced || (sem.startDate+'T00:00');
-    const minDate=formatDateLocal(new Date(now.getFullYear(),now.getMonth(),now.getDate()-120));
-    if(ptr.slice(0,10)<minDate) ptr=minDate+'T00:00';
-    if(ptr>=nowKey) return;
-    const ops=[], added={}, coll=db.collection('users').doc(currentUser.uid).collection('attendance');
+    const base=sem.startDate+'T00:00';
+    const minKey=formatDateLocal(new Date(now.getFullYear(),now.getMonth(),now.getDate()-120))+'T00:00';
+    const ptrOf=it=>{ const p=it.sync||base; return p<minKey?minKey:p; };   // each slot/exam remembers how far it was processed
+    const ops=[], added={}; let considered=0;
+    const coll=db.collection('users').doc(currentUser.uid).collection('attendance');
     const ts=firebase.firestore.FieldValue.serverTimestamp();
     const mine=timetable.filter(t=>t.semester===sem.number && subjects.some(x=>x.id===t.subjectId));
-    for(let d=parseDateLocal(ptr.slice(0,10)); formatDateLocal(d)<=today; d.setDate(d.getDate()+1)){
-      const ds=formatDateLocal(d);
-      if(isCollegeHoliday(ds)) continue;
-      mine.filter(t=>t.day===d.getDay()).forEach(t=>{
-        const endKey=`${ds}T${t.end}`;
-        if(endKey<=ptr || endKey>nowKey) return;
+    mine.forEach(t=>{
+      const p=ptrOf(t); if(p>=nowKey) return;
+      for(let d=parseDateLocal(p.slice(0,10)); formatDateLocal(d)<=today; d.setDate(d.getDate()+1)){
+        if(d.getDay()!==t.day) continue;
+        const ds=formatDateLocal(d), endKey=`${ds}T${t.end}`;
+        if(endKey<=p || endKey>nowKey) continue;
+        considered++;
+        if(isCollegeHoliday(ds)) continue;
         const id=`tt_${ds}_${t.id}`;
-        if(attendance.some(a=>a.id===id)) return;
+        if(attendance.some(a=>a.id===id)) continue;
         const ents=entriesForSubjectDate(t.subjectId,ds,'class');
-        if(ents.some(a=>SKIP_STATUSES.includes(a.status))) return;
+        if(ents.some(a=>SKIP_STATUSES.includes(a.status))) continue;
         const same=mine.filter(x=>x.subjectId===t.subjectId && x.day===t.day).sort((a,b)=>a.start.localeCompare(b.start));
-        if(same.findIndex(x=>x.id===t.id) < ents.filter(a=>!a.auto).length) return; // already recorded by hand
+        if(same.findIndex(x=>x.id===t.id) < ents.filter(a=>!a.auto).length) continue; // already recorded by hand
         const key=t.subjectId+ds; added[key]=(added[key]||0)+1;
-        ops.push([coll.doc(id), { type:'class', status:sem.autoStatus, subjectId:t.subjectId, date:ds, slot:ents.length+added[key], period:`${t.start}–${t.end}`, note:'Timetable (auto)', examType:'', subBy:'', attendedSub:null, auto:true, semester:sem.number, createdAt:ts, updatedAt:ts }]);
-      });
-    }
+        ops.push({ id, data:{ type:'class', status:sem.autoStatus, subjectId:t.subjectId, date:ds, slot:ents.length+added[key], period:`${t.start}–${t.end}`, note:'Timetable (auto)', examType:'', subBy:'', attendedSub:null, auto:true, semester:sem.number, createdAt:ts, updatedAt:ts } });
+      }
+    });
     examtable.filter(e=>e.semester===sem.number && e.date<=today && subjects.some(x=>x.id===e.subjectId)).forEach(e=>{
-      const endKey=`${e.date}T${e.end}`;
-      if(endKey<=ptr || endKey>nowKey) return;
+      const p=ptrOf(e), endKey=`${e.date}T${e.end}`;
+      if(endKey<=p || endKey>nowKey) return;
+      considered++;
       const id=`ex_${e.id}`;
       if(attendance.some(a=>a.id===id || (a.type==='exam' && a.subjectId===e.subjectId && a.date===e.date))) return;
-      ops.push([coll.doc(id), { type:'exam', status:sem.autoStatus, subjectId:e.subjectId, date:e.date, slot:1, period:`${e.start}–${e.end}`, note:'Exam timetable (auto)', examType:e.examType, subBy:'', attendedSub:null, auto:true, semester:sem.number, createdAt:ts, updatedAt:ts }]);
+      ops.push({ id, data:{ type:'exam', status:sem.autoStatus, subjectId:e.subjectId, date:e.date, slot:1, period:`${e.start}–${e.end}`, note:'Exam timetable (auto)', examType:e.examType, subBy:'', attendedSub:null, auto:true, semester:sem.number, createdAt:ts, updatedAt:ts } });
     });
-    for(let i=0;i<ops.length;i+=400){
-      const b=db.batch(); ops.slice(i,i+400).forEach(([ref,data])=>b.set(ref,data)); await b.commit();
+    await commitOps(ops);
+    if(considered){
+      const mark=it=>it.semester===sem.number ? { ...it, sync:nowKey } : it;
+      const tl=timetable.map(mark), el=examtable.map(mark);
+      await saveUserField({ timetable:tl, examtable:el }); timetable=tl; examtable=el;
     }
-    await db.collection('users').doc(currentUser.uid).set({ ttSynced:nowKey },{merge:true});
-    profileData.ttSynced=nowKey;
     if(ops.length) showToast(`Timetable: ${ops.length} attendance record${ops.length===1?'':'s'} added`,'info');
   }catch(err){ /* retried on next check */ }
   finally{ ttSyncing=false; }
@@ -1790,14 +1828,7 @@ function holidayDates(h){
   const out=[]; for(let d=parseDateLocal(h.from); formatDateLocal(d)<=(h.to||h.from); d.setDate(d.getDate()+1)) out.push(formatDateLocal(d));
   return out;
 }
-function attachHolidayListener(){
-  if(unsubHol) unsubHol();
-  unsubHol = db.collection('users').doc(currentUser.uid).collection('holidays')
-    .onSnapshot(snap=>{
-      holidays = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>a.from.localeCompare(b.from));
-      holLoaded = true; renderHolidays(); syncHolidays(); syncWeekends(); syncTimetable();
-    }, ()=>showToast('Could not load holidays','error'));
-}
+function attachHolidayListener(){ /* holidays now load with the timetable */ }
 function renderHolidays(){
   const today=todayStr();
   $('hol-list').innerHTML = holidays.length ? holidays.map(h=>{
@@ -1834,7 +1865,8 @@ async function syncHolidays(){
     });
     await commitOps(ops);
     const ids = subjects.map(x=>x.id);
-    await Promise.all(pending.map(h=>db.collection('users').doc(currentUser.uid).collection('holidays').doc(h.id).update({ applied:ids })));
+    const list = holidays.map(h=>pending.includes(h) ? { ...h, applied:ids } : h);
+    await saveUserField({ holidays:list }); holidays = list; renderHolidays();
     if(ops.length) showToast('College holiday added to your attendance','info');
   }catch(err){ /* retried on next change */ }
   finally{ holSyncing = false; }
@@ -1844,9 +1876,10 @@ function deleteHoliday(id){
   askConfirm('Remove this holiday?', 'The Holiday records it added to your attendance will also be removed.', async ()=>{
     try{
       await commitOps(attendance.filter(a=>a.holidayId===id).map(a=>({del:true,id:a.id})));
-      await db.collection('users').doc(currentUser.uid).collection('holidays').doc(id).delete();
+      const list = holidays.filter(x=>x.id!==id);
+      await saveUserField({ holidays:list }); holidays = list; renderHolidays();
       showToast('Holiday removed','success');
-    }catch(err){ showToast('Could not remove holiday','error'); }
+    }catch(err){ fbErr('Could not remove holiday', err); }
   });
 }
 $('hol-form').addEventListener('submit', async e=>{
@@ -1856,10 +1889,12 @@ $('hol-form').addEventListener('submit', async e=>{
   if(to<from){ showToast('"To" date must not be before "From"','error'); return; }
   if(holidayDates({from,to}).length>31){ showToast('A holiday can span at most 31 days','error'); return; }
   try{
-    await db.collection('users').doc(currentUser.uid).collection('holidays').add({ name, from, to, applied:[], createdAt:firebase.firestore.FieldValue.serverTimestamp() });
+    const list=[...holidays, { id:genId(), name, from, to, applied:[] }].sort((a,b)=>a.from.localeCompare(b.from));
+    await saveUserField({ holidays:list });
+    holidays=list; renderHolidays(); syncHolidays();
     $('hol-name').value=''; $('hol-from').value=''; $('hol-to').value='';
     showToast('Holiday added','success');
-  }catch(err){ showToast('Could not add holiday','error'); }
+  }catch(err){ fbErr('Could not add holiday', err); }
 });
 
 function fillRulesForm(){
@@ -2113,17 +2148,19 @@ function renderDashboard(){
     { num: stats.skipped, lbl:'Holidays / not held' },
   ].map(s=>`<div class="stat-card"><div class="num">${s.num}</div><div class="lbl">${s.lbl}</div></div>`).join('');
 
+  const noData = stats.total === 0;
   const state = statusFor(stats.percentage, target);
   const colorVar = state==='safe' ? '--accent' : state==='near' ? '--amber' : '--red';
   const circumference = 2*Math.PI*52;
   const offset = circumference - (Math.min(stats.percentage,100)/100)*circumference;
   $('dash-ring').innerHTML = `
-    <svg viewBox="0 0 120 120">
+    <svg viewBox="0 0 120 120" data-offset="${offset}">
       <circle cx="60" cy="60" r="52" fill="none" stroke="var(--line)" stroke-width="10"/>
       <circle cx="60" cy="60" r="52" fill="none" stroke="var(${colorVar})" stroke-width="10" stroke-linecap="round"
-        stroke-dasharray="${circumference}" stroke-dashoffset="${offset}"/>
+        stroke-dasharray="${circumference}" stroke-dashoffset="${circumference}"/>
     </svg>
     <div class="ring-label"><div class="pct">${stats.percentage}%</div><div class="txt">of target ${target}%</div></div>`;
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{ const sv=$('dash-ring').querySelector('svg'); if(sv) sv.lastElementChild.setAttribute('stroke-dashoffset', sv.dataset.offset); }));
   $('dash-ring-stats').innerHTML = `
     <div class="ring-stat-row"><span>Classes held</span><b>${stats.total}</b></div>
     <div class="ring-stat-row"><span>Present</span><b>${stats.present}</b></div>
@@ -2135,7 +2172,7 @@ function renderDashboard(){
     near: `<span class="chip chip-warn">Near target</span> — you're at ${stats.percentage}%, just under your ${target}% goal.`,
     below: `<span class="chip chip-danger">Below target</span> — you're at ${stats.percentage}%, well under your ${target}% goal.`
   };
-  $('dash-status-note').innerHTML = `
+  $('dash-status-note').innerHTML = noData ? `<p style="font-size:13.5px; color:var(--ink-soft); line-height:1.6;">No classes recorded yet. Add your subjects, then record attendance or set up your timetable to start tracking.</p>` : `
     <p style="font-size:13.5px; color:var(--ink-soft); line-height:1.6;">${noteMap[state]}</p>
     <p style="font-size:13.5px; color:var(--ink-soft); line-height:1.6; margin-top:8px;">${missOrNeedText(stats.present, stats.total, target)}</p>`;
 
@@ -2165,7 +2202,7 @@ function renderCharts(){
   chartBreakdown = new Chart(ctx1, {
     type:'doughnut',
     data:{ labels:['Present','Absent','Leave'], datasets:[{ data:[stats.present, stats.absent, stats.leave], backgroundColor:[accent, red, amber], borderWidth:0 }] },
-    options:{ plugins:{ legend:{ position:'bottom', labels:{ color:inkSoft, boxWidth:10, font:{ size:11.5 } } } }, cutout:'65%' }
+    options:{ plugins:{ legend:{ position:'bottom', labels:{ color:inkSoft, boxWidth:10, font:{ size:11.5 } } } }, cutout:'65%', maintainAspectRatio:false }
   });
 
   // Subject-wise bar
@@ -2175,8 +2212,8 @@ function renderCharts(){
   const subjData = subjects.map(s=>subjectStats(s.id).percentage);
   chartSubjects = new Chart(ctx2, {
     type:'bar',
-    data:{ labels: subjLabels, datasets:[{ data: subjData, backgroundColor: accent, borderRadius:5, maxBarThickness:34 }] },
-    options:{ plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, max:100, grid:{ color:line }, ticks:{ color:inkSoft } }, x:{ grid:{ display:false }, ticks:{ color:inkSoft } } } }
+    data:{ labels: subjLabels, datasets:[{ data: subjData, backgroundColor: subjects.map(s=>{ const st=statusFor(subjectStats(s.id).percentage, s.target||75); return st==='safe'?accent:st==='near'?amber:red; }), borderRadius:5, maxBarThickness:34 }] },
+    options:{ maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, max:100, grid:{ color:line }, ticks:{ color:inkSoft } }, x:{ grid:{ display:false }, ticks:{ color:inkSoft } } } }
   });
 
   // Monthly trend (last 6 months)
@@ -2188,11 +2225,11 @@ function renderCharts(){
     const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
     months.push({ key:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`, label:d.toLocaleDateString(undefined,{month:'short'}) });
   }
-  const trendData = months.map(m=> tally(recsForStats().filter(a=>a.date.startsWith(m.key))).percentage);
+  const trendData = months.map(m=>{ const t=tally(recsForStats().filter(a=>a.date.startsWith(m.key))); return t.total ? t.percentage : null; });
   chartTrend = new Chart(ctx3, {
     type:'line',
-    data:{ labels: months.map(m=>m.label), datasets:[{ data: trendData, borderColor: accent, backgroundColor: accent, tension:.35, pointRadius:3, fill:false }] },
-    options:{ plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, max:100, grid:{ color:line }, ticks:{ color:inkSoft } }, x:{ grid:{ display:false }, ticks:{ color:inkSoft } } } }
+    data:{ labels: months.map(m=>m.label), datasets:[{ data: trendData, borderColor: accent, backgroundColor: accent, tension:.35, pointRadius:3, fill:false, spanGaps:true }] },
+    options:{ maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, max:100, grid:{ color:line }, ticks:{ color:inkSoft } }, x:{ grid:{ display:false }, ticks:{ color:inkSoft } } } }
   });
 }
 
