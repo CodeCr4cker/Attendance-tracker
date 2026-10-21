@@ -325,6 +325,18 @@ table.responsive-cards{min-width:0;}
 .stat-card .num{font-family:var(--serif); font-size:26px; font-weight:600; line-height:1;}
 .stat-card .lbl{font-size:12.5px; color:var(--ink-soft); margin-top:8px;}
 @media(max-width:640px){.stat-grid{grid-template-columns:repeat(2,1fr);}}
+@keyframes rowIn{from{opacity:0; transform:translateX(-10px);} to{opacity:1; transform:none;}}
+.tt-row{animation:rowIn .3s ease both;}
+.day-chip{position:relative; display:inline-block;}
+.day-chip input{position:absolute; opacity:0; inset:0; width:100%!important; height:100%; margin:0; cursor:pointer;}
+.day-chip span{display:inline-block; padding:8px 13px; border:1px solid var(--line-strong); border-radius:999px; font-size:13.5px; font-weight:500; color:var(--ink-soft); background:var(--paper-raised); transition:background .15s, color .15s, border-color .15s, transform .15s; user-select:none;}
+.day-chip:hover span{border-color:var(--accent);}
+.day-chip input:checked+span{background:var(--accent); border-color:var(--accent); color:#fff; transform:scale(1.04);}
+.day-chip input:focus-visible+span{outline:2px solid var(--accent); outline-offset:2px;}
+.form-msg{display:none; font-size:13px; padding:9px 12px; border-radius:8px; margin-bottom:12px; line-height:1.5;}
+.form-msg.err{display:block; background:var(--red-tint); color:var(--red); animation:cardUp .25s ease;}
+.form-msg.ok{display:block; background:var(--accent-tint); color:var(--accent-dark);}
+.link-btn{background:none; border:0; color:var(--accent); font-size:12.5px; cursor:pointer; padding:0 6px; font-weight:600;}
 .chart-box{position:relative; height:260px; width:100%;}
 .dash-grid>*,.card{min-width:0;}
 .chart-box canvas{max-width:100%;}
@@ -730,13 +742,14 @@ tr:last-child td{border-bottom:none;}
             <div class="card-head"><h3>Add lecture slot</h3></div>
             <form id="tt-form">
               <div class="field"><label>Subject</label><select id="tt-subject" required></select></div>
-              <div class="field"><label>Days</label><div style="display:flex; flex-wrap:wrap; gap:10px;"><label style="display:inline-flex; gap:5px; align-items:center; font-size:13.5px;"><input type="checkbox" class="tt-day" value="1" style="width:auto; padding:0;"> Mon</label><label style="display:inline-flex; gap:5px; align-items:center; font-size:13.5px;"><input type="checkbox" class="tt-day" value="2" style="width:auto; padding:0;"> Tue</label><label style="display:inline-flex; gap:5px; align-items:center; font-size:13.5px;"><input type="checkbox" class="tt-day" value="3" style="width:auto; padding:0;"> Wed</label><label style="display:inline-flex; gap:5px; align-items:center; font-size:13.5px;"><input type="checkbox" class="tt-day" value="4" style="width:auto; padding:0;"> Thu</label><label style="display:inline-flex; gap:5px; align-items:center; font-size:13.5px;"><input type="checkbox" class="tt-day" value="5" style="width:auto; padding:0;"> Fri</label><label style="display:inline-flex; gap:5px; align-items:center; font-size:13.5px;"><input type="checkbox" class="tt-day" value="6" style="width:auto; padding:0;"> Sat</label><label style="display:inline-flex; gap:5px; align-items:center; font-size:13.5px;"><input type="checkbox" class="tt-day" value="0" style="width:auto; padding:0;"> Sun</label></div></div>
+              <div class="field"><label>Days <button type="button" class="link-btn" onclick="setTTDays([1,2,3,4,5])">Mon–Fri</button><button type="button" class="link-btn" onclick="setTTDays([])">Clear</button></label><div style="display:flex; flex-wrap:wrap; gap:8px;"><label class="day-chip"><input type="checkbox" class="tt-day" value="1"><span>Mon</span></label><label class="day-chip"><input type="checkbox" class="tt-day" value="2"><span>Tue</span></label><label class="day-chip"><input type="checkbox" class="tt-day" value="3"><span>Wed</span></label><label class="day-chip"><input type="checkbox" class="tt-day" value="4"><span>Thu</span></label><label class="day-chip"><input type="checkbox" class="tt-day" value="5"><span>Fri</span></label><label class="day-chip"><input type="checkbox" class="tt-day" value="6"><span>Sat</span></label><label class="day-chip"><input type="checkbox" class="tt-day" value="0"><span>Sun</span></label></div></div>
               <div class="row-2">
                 <div class="field"><label>Starts</label><input type="time" id="tt-start" required></div>
                 <div class="field"><label>Ends</label><input type="time" id="tt-end" required></div>
               </div>
               <div class="field"><label>Room (optional)</label><input type="text" id="tt-room" maxlength="40" placeholder="e.g. Room 204"></div>
-              <button class="btn btn-primary" type="submit">Add to timetable</button>
+              <div class="form-msg" id="tt-msg"></div>
+              <button class="btn btn-primary" type="submit" id="tt-submit">Add to timetable</button>
             </form>
           </div>
         </div>
@@ -757,7 +770,8 @@ tr:last-child td{border-bottom:none;}
                 <div class="field"><label>Ends</label><input type="time" id="ex-end" required></div>
               </div>
               <div class="field"><label>Room (optional)</label><input type="text" id="ex-room" maxlength="40"></div>
-              <button class="btn btn-primary" type="submit">Add to exam timetable</button>
+              <div class="form-msg" id="ex-msg"></div>
+              <button class="btn btn-primary" type="submit" id="ex-submit">Add to exam timetable</button>
             </form>
           </div>
           <div class="card">
@@ -1207,7 +1221,7 @@ function switchSection(target){
     if(target === 'reports') renderReport();
     if(target === 'calculator') prefillCalculator();
     hideContentLoader();
-  }, 5000);
+  }, 400);
 }
 document.querySelectorAll('.side-link[data-target]').forEach(btn=>{
   btn.addEventListener('click', ()=>switchSection(btn.dataset.target));
@@ -1337,7 +1351,7 @@ function fillProfileForm(){
   $('pf-college').value = profileData.college || '';
   $('pf-course').value = profileData.course || '';
   $('pf-branch').value = profileData.branch || '';
-  $('pf-semester').value = profileData.semester || '';
+  $('pf-semester').value = (profileData.semester && typeof profileData.semester!=='object') ? profileData.semester : (getSem().number || '');
   $('pf-section').value = profileData.section || '';
   $('pf-year').value = profileData.academicYear || '';
   $('pf-target').value = profileData.targetPercentage || 75;
@@ -1672,13 +1686,17 @@ setInterval(syncWeekends, 60000);
    ================================================================ */
 let timetable = [], examtable = [], unsubTT = null, unsubEX = null, ttLoaded = false, exLoaded = false, ttSyncing = false;
 function genId(){ return Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-4); }
-function fbErr(msg, err){ showToast(msg + (err && err.code ? ` (${err.code})` : ''), 'error'); }
+function fbErr(msg, err){ showToast(msg + (err && err.code ? ` (${err.code})` : ''), 'error'); console.error(msg, err); }
 async function saveUserField(obj){
   await db.collection('users').doc(currentUser.uid).set({ ...obj, updatedAt:firebase.firestore.FieldValue.serverTimestamp() }, { merge:true });
   Object.assign(profileData, obj);
 }
 const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-function getSem(){ return { number:1, startDate:todayStr(), autoEnabled:true, autoStatus:'present', ...(profileData.semester||{}) }; }
+function getSem(){
+  const legacy = profileData.semester && typeof profileData.semester==='object' ? profileData.semester : {};
+  const n = parseInt(profileData.semester,10);
+  return { number:(n>=1 && n<=8) ? n : 1, startDate:todayStr(), autoEnabled:true, autoStatus:'present', ...legacy, ...(profileData.semesterCfg||{}) };
+}
 function ttHasSlot(subjectId, dow){ const n=getSem().number; return timetable.some(t=>t.semester===n && t.subjectId===subjectId && t.day===dow); }
 function fillSemesterForm(){
   const m=getSem();
@@ -1687,14 +1705,14 @@ function fillSemesterForm(){
 async function saveSemester(){
   const old=getSem();
   const semester={ number:Number($('sem-number').value), startDate:$('sem-start').value || todayStr(), autoEnabled:$('sem-auto').checked, autoStatus:$('sem-status').value };
-  const data={ semester, updatedAt:firebase.firestore.FieldValue.serverTimestamp() };
+  const data={ semesterCfg:semester, semester:String(semester.number), updatedAt:firebase.firestore.FieldValue.serverTimestamp() };
   if(semester.startDate!==old.startDate){
     const reset=it=>({ ...it, sync:semester.startDate+'T00:00' });
     data.timetable=timetable.map(reset); data.examtable=examtable.map(reset);
   }
   try{
     await db.collection('users').doc(currentUser.uid).set(data,{merge:true});
-    profileData.semester=semester; if(data.timetable){ timetable=data.timetable; examtable=data.examtable; }
+    profileData.semesterCfg=semester; profileData.semester=String(semester.number); if(data.timetable){ timetable=data.timetable; examtable=data.examtable; }
     renderTimetable(); showToast('Semester saved','success'); syncTimetable();
   }catch(err){ fbErr('Could not save semester', err); }
 }
@@ -1702,7 +1720,7 @@ function attachTimetableListeners(){
   if(unsubTT) unsubTT();
   unsubTT = db.collection('users').doc(currentUser.uid).onSnapshot(snap=>{
     const d = snap.exists ? snap.data() : {};
-    ['semester','ttSynced','weekend','weekendSyncedThrough'].forEach(k=>{ if(d[k]!==undefined) profileData[k]=d[k]; });
+    ['semester','semesterCfg','weekend','weekendSyncedThrough'].forEach(k=>{ if(d[k]!==undefined) profileData[k]=d[k]; });
     timetable = d.timetable || []; examtable = d.examtable || [];
     holidays = (d.holidays || []).slice().sort((a,b)=>a.from.localeCompare(b.from));
     ttLoaded = exLoaded = holLoaded = true;
@@ -1733,38 +1751,57 @@ function deleteTTDoc(coll,id){
     }catch(err){ fbErr('Could not remove', err); }
   });
 }
+function formMsg(id, text, ok){ const el=$(id); el.textContent=text||''; el.className='form-msg'+(text?(ok?' ok':' err'):''); }
+function setTTDays(list){ document.querySelectorAll('.tt-day').forEach(x=>x.checked=list.includes(Number(x.value))); }
+function errText(err){ return err ? (err.code ? `${err.code}: ` : '') + (err.message||'') : ''; }
 $('tt-form').addEventListener('submit', async e=>{
   e.preventDefault();
+  formMsg('tt-msg','');
   const subjectId=$('tt-subject').value, start=$('tt-start').value, end=$('tt-end').value, room=$('tt-room').value.trim();
   const days=[...document.querySelectorAll('.tt-day:checked')].map(x=>Number(x.value));
-  if(!subjectId){ showToast('Add a subject first','error'); return; }
-  if(!days.length){ showToast('Choose at least one day','error'); return; }
-  if(start>=end){ showToast('End time must be after start time','error'); return; }
+  if(!subjectId){ formMsg('tt-msg','Add a subject first (Subjects page).'); return; }
+  if(!days.length){ formMsg('tt-msg','Pick at least one day.'); return; }
+  if(!start || !end){ formMsg('tt-msg','Enter both start and end times.'); return; }
+  if(start>=end){ formMsg('tt-msg','End time must be after the start time.'); return; }
   const n=getSem().number;
   for(const d of days){
     const clash=timetable.find(t=>t.semester===n && t.day===d && t.start<end && start<t.end);
-    if(clash){ showToast(`Overlaps with ${subjectName(clash.subjectId)} on ${DAY_NAMES[d]}`,'error'); return; }
+    if(clash){ formMsg('tt-msg',`Overlaps with ${subjectName(clash.subjectId)} (${clash.start}–${clash.end}) on ${DAY_NAMES[d]}.`); return; }
   }
+  const btn=$('tt-submit'); btn.disabled=true; btn.textContent='Adding…';
   try{
-    const list=[...timetable, ...days.map(day=>({ id:genId(), semester:n, subjectId, day, start, end, room, sync:getSem().startDate+'T00:00' }))];
+    const sync=getSem().startDate+'T00:00';
+    const list=[...timetable, ...days.map(day=>({ id:genId(), semester:n, subjectId, day, start, end, room, sync }))];
     await saveUserField({ timetable:list });
     timetable=list; renderTimetable();
-    document.querySelectorAll('.tt-day').forEach(x=>x.checked=false);
+    setTTDays([new Date().getDay()]); $('tt-room').value='';
+    formMsg('tt-msg',`Added ${days.length} slot${days.length===1?'':'s'} to semester ${n}.`,true);
     showToast('Lecture slot added','success');
-  }catch(err){ fbErr('Could not add slot', err); }
+    syncTimetable();
+  }catch(err){
+    formMsg('tt-msg','Could not save: '+errText(err)+' (check your Firestore rules allow writing to your user document).');
+  }finally{ btn.disabled=false; btn.textContent='Add to timetable'; }
 });
+setTTDays([new Date().getDay()]);
 $('ex-form').addEventListener('submit', async e=>{
   e.preventDefault();
-  const subjectId=$('ex-subject').value, start=$('ex-start').value, end=$('ex-end').value;
-  if(!subjectId){ showToast('Add a subject first','error'); return; }
-  if(start>=end){ showToast('End time must be after start time','error'); return; }
+  formMsg('ex-msg','');
+  const subjectId=$('ex-subject').value, start=$('ex-start').value, end=$('ex-end').value, date=$('ex-date').value;
+  if(!subjectId){ formMsg('ex-msg','Add a subject first (Subjects page).'); return; }
+  if(!date || !start || !end){ formMsg('ex-msg','Enter the date, start time and end time.'); return; }
+  if(start>=end){ formMsg('ex-msg','End time must be after the start time.'); return; }
+  const btn=$('ex-submit'); btn.disabled=true; btn.textContent='Adding…';
   try{
-    const list=[...examtable, { id:genId(), semester:getSem().number, subjectId, examType:$('ex-type').value, date:$('ex-date').value, start, end, room:$('ex-room').value.trim(), sync:getSem().startDate+'T00:00' }];
+    const list=[...examtable, { id:genId(), semester:getSem().number, subjectId, examType:$('ex-type').value, date, start, end, room:$('ex-room').value.trim(), sync:getSem().startDate+'T00:00' }];
     await saveUserField({ examtable:list });
     examtable=list; renderTimetable();
     $('ex-room').value='';
+    formMsg('ex-msg','Exam added.',true);
     showToast('Exam added','success');
-  }catch(err){ fbErr('Could not add exam', err); }
+    syncTimetable();
+  }catch(err){
+    formMsg('ex-msg','Could not save: '+errText(err)+' (check your Firestore rules allow writing to your user document).');
+  }finally{ btn.disabled=false; btn.textContent='Add to exam timetable'; }
 });
 // Records attendance for lectures/exams whose end time has passed since the last check.
 async function syncTimetable(){
